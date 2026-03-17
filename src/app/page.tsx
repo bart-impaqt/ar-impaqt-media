@@ -34,17 +34,6 @@ const LEGACY_MARKER_IDS = new Set([
   "pattern-letterD",
 ]);
 
-const getViewportSize = () => {
-  if (typeof window === "undefined") {
-    return { width: 1280, height: 720 };
-  }
-
-  return {
-    width: Math.max(1, Math.round(window.visualViewport?.width || window.innerWidth)),
-    height: Math.max(1, Math.round(window.visualViewport?.height || window.innerHeight)),
-  };
-};
-
 export default function Home() {
   const SCREENS = {
     QMC: {
@@ -68,7 +57,6 @@ export default function Home() {
   const [orientation, setOrientation] = useState<Orientation>("Landscape");
   const [size, setSize] = useState<string>("43");
   const [mounted, setMounted] = useState(false);
-  const [arViewport, setArViewport] = useState(getViewportSize);
   const [client, setClient] = useState<string>(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("selectedClient") || "";
@@ -86,26 +74,6 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    const updateViewport = () => {
-      const next = getViewportSize();
-      setArViewport((current) =>
-        current.width === next.width && current.height === next.height ? current : next
-      );
-    };
-
-    updateViewport();
-    window.addEventListener("resize", updateViewport);
-    window.addEventListener("orientationchange", updateViewport);
-    window.visualViewport?.addEventListener("resize", updateViewport);
-
-    return () => {
-      window.removeEventListener("resize", updateViewport);
-      window.removeEventListener("orientationchange", updateViewport);
-      window.visualViewport?.removeEventListener("resize", updateViewport);
-    };
   }, []);
 
   useEffect(() => {
@@ -161,7 +129,6 @@ export default function Home() {
       scene.style.setProperty("inset", "0", "important");
       scene.style.setProperty("width", `${viewportWidth}px`, "important");
       scene.style.setProperty("height", `${viewportHeight}px`, "important");
-      scene.renderer?.setSize(viewportWidth, viewportHeight, true);
     };
 
     const scheduleViewportSize = () => {
@@ -308,7 +275,6 @@ export default function Home() {
     const safe = markerId.replace(/[^a-zA-Z0-9_-]/g, "-");
     return `videoTexture-${safe}-${index}`;
   };
-  const arjsConfig = `sourceType: webcam; sourceWidth: ${arViewport.width}; sourceHeight: ${arViewport.height}; displayWidth: ${arViewport.width}; displayHeight: ${arViewport.height}; debugUIEnabled: false; patternRatio: 0.5; labelingMode: black_region;`;
 
   if (!mounted) {
     return (
@@ -324,7 +290,7 @@ export default function Home() {
         ref={sceneRef}
         className="ar-scene"
         embedded
-        arjs={arjsConfig}
+        arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false; patternRatio: 0.5; labelingMode: black_region;"
         vr-mode-ui="enabled: false"
         renderer="logarithmicDepthBuffer: true; antialias: true;"
         style={{ width: "100%", height: "100%" }}

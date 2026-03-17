@@ -57,38 +57,9 @@ body[data-ar-viewer="1"] {
   padding: 0 !important;
 }
 
-body[data-ar-viewer="1"][style] {
-  width: 100dvw !important;
-  height: 100dvh !important;
-  margin: 0 !important;
-  margin-left: 0 !important;
-  margin-top: 0 !important;
-}
-
-.ar-scene,
-.ar-scene canvas,
-.ar-scene .a-canvas {
+.ar-scene {
   position: fixed !important;
   inset: 0 !important;
   width: 100dvw !important;
   height: 100dvh !important;
-  max-width: 100dvw !important;
-  max-height: 100dvh !important;
-}
-
-#arjs-video,
-.arjs-video,
-.arjs-canvas {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100dvw !important;
-  height: 100dvh !important;
-  max-width: 100dvw !important;
-  max-height: 100dvh !important;
-  margin: 0 !important;
-}
-
-#arjs-video,
-.arjs-video {
-  object-fit: fill !important;
 }
