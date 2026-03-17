@@ -63,21 +63,3 @@ body[data-ar-viewer="1"] {
   width: 100dvw !important;
   height: 100dvh !important;
 }
-
-#arjs-video,
-.arjs-video,
-.arjs-canvas,
-canvas.a-canvas {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100dvw !important;
-  height: 100dvh !important;
-  max-width: none !important;
-  max-height: none !important;
-  margin: 0 !important;
-}
-
-#arjs-video,
-.arjs-video {
-  object-fit: cover !important;
-}

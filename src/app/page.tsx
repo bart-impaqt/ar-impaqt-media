@@ -136,7 +136,6 @@ export default function Home() {
       scene.style.setProperty("inset", "0", "important");
       scene.style.setProperty("width", `${viewportWidth}px`, "important");
       scene.style.setProperty("height", `${viewportHeight}px`, "important");
-      scene.renderer?.setSize(viewportWidth, viewportHeight, true);
 
       if (canvas) {
         canvas.style.setProperty("position", "fixed", "important");
