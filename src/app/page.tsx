@@ -113,6 +113,7 @@ export default function Home() {
     }
 
     let frameRequest = 0;
+    const settleTimers: number[] = [];
 
     const applyViewportSize = () => {
       lockDocumentViewport();
@@ -128,34 +129,66 @@ export default function Home() {
       const canvas =
         scene.canvas ||
         (scene.querySelector("canvas") as HTMLCanvasElement | null);
+      const sourceVideo = document.querySelector<HTMLVideoElement>(
+        "#arjs-video, .arjs-video"
+      );
       const arElements = document.querySelectorAll<HTMLElement>(
         "#arjs-video, .arjs-video, .arjs-canvas"
       );
+      const sourceAspect =
+        sourceVideo?.videoWidth && sourceVideo.videoHeight
+          ? sourceVideo.videoWidth / sourceVideo.videoHeight
+          : canvas?.width && canvas.height
+            ? canvas.width / canvas.height
+            : viewportWidth / viewportHeight;
+      const viewportAspect = viewportWidth / viewportHeight;
+
+      let renderWidth = viewportWidth;
+      let renderHeight = viewportHeight;
+      if (sourceAspect > 0 && Number.isFinite(sourceAspect)) {
+        if (viewportAspect > sourceAspect) {
+          renderWidth = viewportWidth;
+          renderHeight = Math.round(viewportWidth / sourceAspect);
+        } else {
+          renderHeight = viewportHeight;
+          renderWidth = Math.round(viewportHeight * sourceAspect);
+        }
+      }
+      const offsetX = Math.round((viewportWidth - renderWidth) / 2);
+      const offsetY = Math.round((viewportHeight - renderHeight) / 2);
 
       scene.style.position = "fixed";
       scene.style.inset = "0";
       scene.style.width = `${viewportWidth}px`;
       scene.style.height = `${viewportHeight}px`;
-      scene.renderer?.setSize(viewportWidth, viewportHeight, true);
+      scene.renderer?.setSize(renderWidth, renderHeight, false);
 
       if (canvas) {
-        canvas.style.width = `${viewportWidth}px`;
-        canvas.style.height = `${viewportHeight}px`;
+        canvas.style.setProperty("position", "fixed", "important");
+        canvas.style.setProperty("left", `${offsetX}px`, "important");
+        canvas.style.setProperty("top", `${offsetY}px`, "important");
+        canvas.style.setProperty("right", "auto", "important");
+        canvas.style.setProperty("bottom", "auto", "important");
+        canvas.style.setProperty("width", `${renderWidth}px`, "important");
+        canvas.style.setProperty("height", `${renderHeight}px`, "important");
+        canvas.style.setProperty("max-width", "none", "important");
+        canvas.style.setProperty("max-height", "none", "important");
+        canvas.style.setProperty("margin", "0", "important");
       }
 
       for (const element of arElements) {
-        element.style.position = "fixed";
-        element.style.left = "0";
-        element.style.top = "0";
-        element.style.right = "0";
-        element.style.bottom = "0";
-        element.style.width = `${viewportWidth}px`;
-        element.style.height = `${viewportHeight}px`;
-        element.style.maxWidth = "none";
-        element.style.maxHeight = "none";
-        element.style.margin = "0";
+        element.style.setProperty("position", "fixed", "important");
+        element.style.setProperty("left", `${offsetX}px`, "important");
+        element.style.setProperty("top", `${offsetY}px`, "important");
+        element.style.setProperty("right", "auto", "important");
+        element.style.setProperty("bottom", "auto", "important");
+        element.style.setProperty("width", `${renderWidth}px`, "important");
+        element.style.setProperty("height", `${renderHeight}px`, "important");
+        element.style.setProperty("max-width", "none", "important");
+        element.style.setProperty("max-height", "none", "important");
+        element.style.setProperty("margin", "0", "important");
         if (element instanceof HTMLVideoElement) {
-          element.style.objectFit = "cover";
+          element.style.setProperty("object-fit", "fill", "important");
         }
       }
     };
@@ -175,6 +208,11 @@ export default function Home() {
     mutationObserver.observe(body, { attributes: true, attributeFilter: ["style"] });
 
     scheduleViewportSize();
+    settleTimers.push(
+      window.setTimeout(scheduleViewportSize, 120),
+      window.setTimeout(scheduleViewportSize, 400),
+      window.setTimeout(scheduleViewportSize, 1000)
+    );
 
     return () => {
       scene.removeEventListener("loaded", onSceneLoaded);
@@ -183,6 +221,9 @@ export default function Home() {
       window.visualViewport?.removeEventListener("resize", scheduleViewportSize);
       mutationObserver.disconnect();
       window.cancelAnimationFrame(frameRequest);
+      for (const timer of settleTimers) {
+        window.clearTimeout(timer);
+      }
       root.removeAttribute("data-ar-viewer");
       body.removeAttribute("data-ar-viewer");
       if (previousRootStyle === null) {
@@ -479,27 +520,6 @@ export default function Home() {
             ))}
           </select>
         </div>
-
-        {client ? (
-          <div className="text-[12px] leading-5 text-gray-200 break-words">
-            Active Client: <strong>{client}</strong>
-            <br />
-            Assigned markers: {activeAssignments.length}
-            <br />
-            Invalid assignments: {invalidAssignmentCount}
-            <br />
-            Orientation: <strong className="text-blue-400">Per marker</strong>
-            <br />
-            Tracking:{" "}
-            <strong className={trackedMarkers.length > 0 ? "text-green-400" : "text-red-400"}>
-              {trackedMarkers.length > 0 ? trackedMarkers.join(", ") : "none"}
-            </strong>
-          </div>
-        ) : (
-          <div className="text-xs text-gray-400 italic">
-            No client selected; using default marker and manual orientation
-          </div>
-        )}
       </div>
 
       <div className="fixed bottom-2 left-2 right-2 md:left-auto md:right-2 md:w-auto z-50 text-white bg-black/70 border border-white/10 backdrop-blur p-2 rounded-xl text-[11px] sm:text-sm leading-4 sm:leading-5">
