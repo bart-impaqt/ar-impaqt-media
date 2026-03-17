@@ -69,6 +69,7 @@ export default function Home() {
     (HTMLElement & {
       canvas?: HTMLCanvasElement;
       renderer?: { setSize: (width: number, height: number, updateStyle?: boolean) => void };
+      camera?: { aspect: number; updateProjectionMatrix: () => void };
     }) | null
   >(null);
 
@@ -128,24 +129,53 @@ export default function Home() {
       const canvas =
         scene.canvas ||
         (scene.querySelector("canvas") as HTMLCanvasElement | null);
+      const sourceVideo = document.querySelector<HTMLVideoElement>(
+        "#arjs-video, .arjs-video"
+      );
       const arElements = document.querySelectorAll<HTMLElement>(
         "#arjs-video, .arjs-video, .arjs-canvas"
       );
+      const sourceAspect =
+        sourceVideo?.videoWidth && sourceVideo.videoHeight
+          ? sourceVideo.videoWidth / sourceVideo.videoHeight
+          : canvas?.width && canvas.height
+            ? canvas.width / canvas.height
+            : viewportWidth / viewportHeight;
+      const viewportAspect = viewportWidth / viewportHeight;
+
+      let renderWidth = viewportWidth;
+      let renderHeight = viewportHeight;
+      if (sourceAspect > 0 && Number.isFinite(sourceAspect)) {
+        if (viewportAspect > sourceAspect) {
+          renderWidth = viewportWidth;
+          renderHeight = Math.round(viewportWidth / sourceAspect);
+        } else {
+          renderHeight = viewportHeight;
+          renderWidth = Math.round(viewportHeight * sourceAspect);
+        }
+      }
+      const offsetX = Math.round((viewportWidth - renderWidth) / 2);
+      const offsetY = Math.round((viewportHeight - renderHeight) / 2);
 
       scene.style.position = "fixed";
       scene.style.inset = "0";
       scene.style.width = `${viewportWidth}px`;
       scene.style.height = `${viewportHeight}px`;
-      scene.renderer?.setSize(viewportWidth, viewportHeight, true);
+      scene.renderer?.setSize(renderWidth, renderHeight, false);
+
+      if (scene.camera) {
+        scene.camera.aspect = renderWidth / renderHeight;
+        scene.camera.updateProjectionMatrix();
+      }
 
       if (canvas) {
         canvas.style.setProperty("position", "fixed", "important");
-        canvas.style.setProperty("left", "0", "important");
-        canvas.style.setProperty("top", "0", "important");
-        canvas.style.setProperty("right", "0", "important");
-        canvas.style.setProperty("bottom", "0", "important");
-        canvas.style.setProperty("width", `${viewportWidth}px`, "important");
-        canvas.style.setProperty("height", `${viewportHeight}px`, "important");
+        canvas.style.setProperty("left", `${offsetX}px`, "important");
+        canvas.style.setProperty("top", `${offsetY}px`, "important");
+        canvas.style.setProperty("right", "auto", "important");
+        canvas.style.setProperty("bottom", "auto", "important");
+        canvas.style.setProperty("width", `${renderWidth}px`, "important");
+        canvas.style.setProperty("height", `${renderHeight}px`, "important");
         canvas.style.setProperty("max-width", "none", "important");
         canvas.style.setProperty("max-height", "none", "important");
         canvas.style.setProperty("margin", "0", "important");
@@ -153,17 +183,17 @@ export default function Home() {
 
       for (const element of arElements) {
         element.style.setProperty("position", "fixed", "important");
-        element.style.setProperty("left", "0", "important");
-        element.style.setProperty("top", "0", "important");
-        element.style.setProperty("right", "0", "important");
-        element.style.setProperty("bottom", "0", "important");
-        element.style.setProperty("width", `${viewportWidth}px`, "important");
-        element.style.setProperty("height", `${viewportHeight}px`, "important");
+        element.style.setProperty("left", `${offsetX}px`, "important");
+        element.style.setProperty("top", `${offsetY}px`, "important");
+        element.style.setProperty("right", "auto", "important");
+        element.style.setProperty("bottom", "auto", "important");
+        element.style.setProperty("width", `${renderWidth}px`, "important");
+        element.style.setProperty("height", `${renderHeight}px`, "important");
         element.style.setProperty("max-width", "none", "important");
         element.style.setProperty("max-height", "none", "important");
         element.style.setProperty("margin", "0", "important");
         if (element instanceof HTMLVideoElement) {
-          element.style.setProperty("object-fit", "cover", "important");
+          element.style.setProperty("object-fit", "fill", "important");
         }
       }
     };
