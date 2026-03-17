@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+}
+
+html {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: auto;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+html[data-ar-viewer="1"],
+body[data-ar-viewer="1"] {
+  width: 100dvw !important;
+  height: 100dvh !important;
+  max-width: 100dvw !important;
+  max-height: 100dvh !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+body[data-ar-viewer="1"][style] {
+  width: 100dvw !important;
+  height: 100dvh !important;
+  margin: 0 !important;
+  margin-left: 0 !important;
+  margin-top: 0 !important;
+}
+
+.ar-scene,
+.ar-scene canvas,
+.ar-scene .a-canvas {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100dvw !important;
+  height: 100dvh !important;
+  max-width: 100dvw !important;
+  max-height: 100dvh !important;
+}
+
+#arjs-video,
+.arjs-video,
+.arjs-canvas {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100dvw !important;
+  height: 100dvh !important;
+  max-width: 100dvw !important;
+  max-height: 100dvh !important;
+  margin: 0 !important;
+}
+
+#arjs-video,
+.arjs-video {
+  object-fit: cover !important;
+}
