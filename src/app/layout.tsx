@@ -1,9 +1,18 @@
+import { Viewport } from "next/dist/types";
 import "./globals.css";
 import Script from "next/script";
 
 export const metadata = {
   title: "AR TV Viewer",
   description: "Augmented reality TV demo in Next.js",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

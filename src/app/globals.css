@@ -35,31 +35,45 @@ html {
 html,
 body {
   width: 100%;
-  min-height: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: auto;
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  min-height: 100vh;
-  min-height: 100dvh;
+  font-family: Arial, Helvetica, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
 }
 
 html[data-ar-viewer="1"],
 body[data-ar-viewer="1"] {
   width: 100dvw !important;
   height: 100dvh !important;
+  min-width: 100dvw !important;
+  min-height: 100dvh !important;
   max-width: 100dvw !important;
   max-height: 100dvh !important;
   overflow: hidden !important;
+  overscroll-behavior: none !important;
   margin: 0 !important;
   padding: 0 !important;
+  position: fixed !important;
+  inset: 0 !important;
 }
 
-.ar-scene {
+.ar-scene,
+.ar-scene canvas,
+#arjs-video,
+.arjs-video,
+.arjs-canvas,
+canvas.a-canvas {
   position: fixed !important;
   inset: 0 !important;
   width: 100dvw !important;
   height: 100dvh !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
