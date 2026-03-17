@@ -69,7 +69,6 @@ export default function Home() {
     (HTMLElement & {
       canvas?: HTMLCanvasElement;
       renderer?: { setSize: (width: number, height: number, updateStyle?: boolean) => void };
-      camera?: { aspect: number; updateProjectionMatrix: () => void };
     }) | null
   >(null);
 
@@ -126,47 +125,11 @@ export default function Home() {
         1,
         Math.round(window.visualViewport?.height || window.innerHeight)
       );
-      const canvas =
-        scene.canvas ||
-        (scene.querySelector("canvas") as HTMLCanvasElement | null);
-      const arElements = document.querySelectorAll<HTMLElement>(
-        "#arjs-video, .arjs-video, .arjs-canvas"
-      );
-
-      scene.style.position = "fixed";
-      scene.style.inset = "0";
-      scene.style.width = `${viewportWidth}px`;
-      scene.style.height = `${viewportHeight}px`;
+      scene.style.setProperty("position", "fixed", "important");
+      scene.style.setProperty("inset", "0", "important");
+      scene.style.setProperty("width", `${viewportWidth}px`, "important");
+      scene.style.setProperty("height", `${viewportHeight}px`, "important");
       scene.renderer?.setSize(viewportWidth, viewportHeight, true);
-
-      if (canvas) {
-        canvas.style.setProperty("position", "fixed", "important");
-        canvas.style.setProperty("left", "0", "important");
-        canvas.style.setProperty("top", "0", "important");
-        canvas.style.setProperty("right", "0", "important");
-        canvas.style.setProperty("bottom", "0", "important");
-        canvas.style.setProperty("width", `${viewportWidth}px`, "important");
-        canvas.style.setProperty("height", `${viewportHeight}px`, "important");
-        canvas.style.setProperty("max-width", "none", "important");
-        canvas.style.setProperty("max-height", "none", "important");
-        canvas.style.setProperty("margin", "0", "important");
-      }
-
-      for (const element of arElements) {
-        element.style.setProperty("position", "fixed", "important");
-        element.style.setProperty("left", "0", "important");
-        element.style.setProperty("top", "0", "important");
-        element.style.setProperty("right", "0", "important");
-        element.style.setProperty("bottom", "0", "important");
-        element.style.setProperty("width", `${viewportWidth}px`, "important");
-        element.style.setProperty("height", `${viewportHeight}px`, "important");
-        element.style.setProperty("max-width", "none", "important");
-        element.style.setProperty("max-height", "none", "important");
-        element.style.setProperty("margin", "0", "important");
-        if (element instanceof HTMLVideoElement) {
-          element.style.setProperty("object-fit", "cover", "important");
-        }
-      }
     };
 
     const scheduleViewportSize = () => {
