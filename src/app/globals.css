@@ -90,5 +90,5 @@ body[data-ar-viewer="1"][style] {
 
 #arjs-video,
 .arjs-video {
-  object-fit: cover !important;
+  object-fit: fill !important;
 }
