@@ -57,7 +57,6 @@ export default function Home() {
   const [orientation, setOrientation] = useState<Orientation>("Landscape");
   const [size, setSize] = useState<string>("43");
   const [mounted, setMounted] = useState(false);
-  const [trackedMarkers, setTrackedMarkers] = useState<string[]>([]);
   const [client, setClient] = useState<string>(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("selectedClient") || "";
@@ -129,48 +128,24 @@ export default function Home() {
       const canvas =
         scene.canvas ||
         (scene.querySelector("canvas") as HTMLCanvasElement | null);
-      const sourceVideo = document.querySelector<HTMLVideoElement>(
-        "#arjs-video, .arjs-video"
-      );
       const arElements = document.querySelectorAll<HTMLElement>(
         "#arjs-video, .arjs-video, .arjs-canvas"
       );
-      const sourceAspect =
-        sourceVideo?.videoWidth && sourceVideo.videoHeight
-          ? sourceVideo.videoWidth / sourceVideo.videoHeight
-          : canvas?.width && canvas.height
-            ? canvas.width / canvas.height
-            : viewportWidth / viewportHeight;
-      const viewportAspect = viewportWidth / viewportHeight;
-
-      let renderWidth = viewportWidth;
-      let renderHeight = viewportHeight;
-      if (sourceAspect > 0 && Number.isFinite(sourceAspect)) {
-        if (viewportAspect > sourceAspect) {
-          renderWidth = viewportWidth;
-          renderHeight = Math.round(viewportWidth / sourceAspect);
-        } else {
-          renderHeight = viewportHeight;
-          renderWidth = Math.round(viewportHeight * sourceAspect);
-        }
-      }
-      const offsetX = Math.round((viewportWidth - renderWidth) / 2);
-      const offsetY = Math.round((viewportHeight - renderHeight) / 2);
 
       scene.style.position = "fixed";
       scene.style.inset = "0";
       scene.style.width = `${viewportWidth}px`;
       scene.style.height = `${viewportHeight}px`;
-      scene.renderer?.setSize(renderWidth, renderHeight, false);
+      scene.renderer?.setSize(viewportWidth, viewportHeight, true);
 
       if (canvas) {
         canvas.style.setProperty("position", "fixed", "important");
-        canvas.style.setProperty("left", `${offsetX}px`, "important");
-        canvas.style.setProperty("top", `${offsetY}px`, "important");
-        canvas.style.setProperty("right", "auto", "important");
-        canvas.style.setProperty("bottom", "auto", "important");
-        canvas.style.setProperty("width", `${renderWidth}px`, "important");
-        canvas.style.setProperty("height", `${renderHeight}px`, "important");
+        canvas.style.setProperty("left", "0", "important");
+        canvas.style.setProperty("top", "0", "important");
+        canvas.style.setProperty("right", "0", "important");
+        canvas.style.setProperty("bottom", "0", "important");
+        canvas.style.setProperty("width", `${viewportWidth}px`, "important");
+        canvas.style.setProperty("height", `${viewportHeight}px`, "important");
         canvas.style.setProperty("max-width", "none", "important");
         canvas.style.setProperty("max-height", "none", "important");
         canvas.style.setProperty("margin", "0", "important");
@@ -178,17 +153,17 @@ export default function Home() {
 
       for (const element of arElements) {
         element.style.setProperty("position", "fixed", "important");
-        element.style.setProperty("left", `${offsetX}px`, "important");
-        element.style.setProperty("top", `${offsetY}px`, "important");
-        element.style.setProperty("right", "auto", "important");
-        element.style.setProperty("bottom", "auto", "important");
-        element.style.setProperty("width", `${renderWidth}px`, "important");
-        element.style.setProperty("height", `${renderHeight}px`, "important");
+        element.style.setProperty("left", "0", "important");
+        element.style.setProperty("top", "0", "important");
+        element.style.setProperty("right", "0", "important");
+        element.style.setProperty("bottom", "0", "important");
+        element.style.setProperty("width", `${viewportWidth}px`, "important");
+        element.style.setProperty("height", `${viewportHeight}px`, "important");
         element.style.setProperty("max-width", "none", "important");
         element.style.setProperty("max-height", "none", "important");
         element.style.setProperty("margin", "0", "important");
         if (element instanceof HTMLVideoElement) {
-          element.style.setProperty("object-fit", "fill", "important");
+          element.style.setProperty("object-fit", "cover", "important");
         }
       }
     };
@@ -199,13 +174,11 @@ export default function Home() {
     };
 
     const onSceneLoaded = () => scheduleViewportSize();
-    const mutationObserver = new MutationObserver(() => scheduleViewportSize());
 
     scene.addEventListener("loaded", onSceneLoaded);
     window.addEventListener("resize", scheduleViewportSize);
     window.addEventListener("orientationchange", scheduleViewportSize);
     window.visualViewport?.addEventListener("resize", scheduleViewportSize);
-    mutationObserver.observe(body, { attributes: true, attributeFilter: ["style"] });
 
     scheduleViewportSize();
     settleTimers.push(
@@ -219,7 +192,6 @@ export default function Home() {
       window.removeEventListener("resize", scheduleViewportSize);
       window.removeEventListener("orientationchange", scheduleViewportSize);
       window.visualViewport?.removeEventListener("resize", scheduleViewportSize);
-      mutationObserver.disconnect();
       window.cancelAnimationFrame(frameRequest);
       for (const timer of settleTimers) {
         window.clearTimeout(timer);
@@ -286,7 +258,6 @@ export default function Home() {
   );
   const activeAssignments =
     resolvedAssignments.length > 0 ? resolvedAssignments : [fallbackAssignment];
-  const invalidAssignmentCount = assignments.length - resolvedAssignments.length;
 
   const playbackKey = activeAssignments
     .map((assignment) => `${assignment.id}|${assignment.video}`)
@@ -319,47 +290,6 @@ export default function Home() {
       window.removeEventListener("touchstart", unlock);
     };
   }, [playbackKey]);
-
-  const markerKey = activeAssignments.map((entry) => entry.id).join("||");
-
-  useEffect(() => {
-    const markerElements = Array.from(
-      document.querySelectorAll<HTMLElement>("a-marker[data-marker-id]")
-    );
-
-    const listeners: Array<{
-      element: HTMLElement;
-      found: () => void;
-      lost: () => void;
-    }> = [];
-
-    for (const element of markerElements) {
-      const markerId = element.dataset.markerId || "unknown";
-
-      const onFound = () => {
-        setTrackedMarkers((current) =>
-          current.includes(markerId) ? current : [...current, markerId]
-        );
-      };
-      const onLost = () => {
-        setTrackedMarkers((current) =>
-          current.filter((entry) => entry !== markerId)
-        );
-      };
-
-      element.addEventListener("markerFound", onFound);
-      element.addEventListener("markerLost", onLost);
-      listeners.push({ element, found: onFound, lost: onLost });
-    }
-
-    return () => {
-      for (const listener of listeners) {
-        listener.element.removeEventListener("markerFound", listener.found);
-        listener.element.removeEventListener("markerLost", listener.lost);
-      }
-      setTrackedMarkers([]);
-    };
-  }, [markerKey]);
 
   const flipDisabled = Boolean(client && assignments.length > 0);
 
@@ -435,6 +365,10 @@ export default function Home() {
               type="pattern"
               url={resolvePatternUrl(assignment.id)}
               size="0.0108"
+              smooth="true"
+              smoothCount="10"
+              smoothTolerance="0.01"
+              smoothThreshold="5"
               data-marker-id={assignment.id}
             >
               <a-entity rotation="-90 0 0" position="0 0 0.05">
