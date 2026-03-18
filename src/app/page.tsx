@@ -195,6 +195,11 @@ export default function Home() {
         anyScene.renderer.setSize(viewportWidth, viewportHeight, false);
       }
 
+      if (anyScene.camera) {
+        anyScene.camera.aspect = viewportWidth / viewportHeight;
+        anyScene.camera.updateProjectionMatrix?.();
+      }
+
       anyScene.resize?.();
     };
 
@@ -255,8 +260,9 @@ export default function Home() {
   }, []);
 
   const data = SCREENS[series][size as keyof (typeof SCREENS)[typeof series]];
+  const displayAspect = 16 / 9;
   const width = data.B * 0.01;
-  const height = data.H * 0.01;
+  const height = width / displayAspect;
 
   const markerMap = useMemo(() => {
     const map = new Map<string, MarkerOption>();
@@ -386,6 +392,9 @@ export default function Home() {
             markerOrientation === "Landscape" ? width : height;
           const screenHeight =
             markerOrientation === "Landscape" ? height : width;
+          const screenMarginScale = 0.95;
+          const videoWidth = screenWidth * screenMarginScale;
+          const videoHeight = screenHeight * screenMarginScale;
           const videoId = buildVideoId(assignment.id, index);
 
           return (
@@ -409,8 +418,8 @@ export default function Home() {
                 />
                 <a-plane
                   position="0 0 0.08"
-                  width={screenWidth - 0.05}
-                  height={screenHeight - 0.05}
+                  width={videoWidth}
+                  height={videoHeight}
                   material={`src: #${videoId}`}
                 />
               </a-entity>
