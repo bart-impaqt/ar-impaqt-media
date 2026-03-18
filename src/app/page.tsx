@@ -133,12 +133,73 @@ export default function Home() {
       );
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
+      const sourceVideo = document.querySelector<HTMLVideoElement>(
+        "#arjs-video, .arjs-video",
+      );
+      if (sourceVideo && sourceVideo.readyState < 1) {
+        sourceVideo.addEventListener("loadedmetadata", scheduleViewportSize, {
+          once: true,
+        });
+      }
+
+      const sourceAspect =
+        sourceVideo &&
+        sourceVideo.videoWidth > 0 &&
+        sourceVideo.videoHeight > 0
+          ? sourceVideo.videoWidth / sourceVideo.videoHeight
+          : 16 / 9;
+
+      const viewportAspect = viewportWidth / viewportHeight;
+      let frameWidth = viewportWidth;
+      let frameHeight = viewportHeight;
+      if (viewportAspect > sourceAspect) {
+        frameWidth = viewportWidth;
+        frameHeight = Math.round(frameWidth / sourceAspect);
+      } else {
+        frameHeight = viewportHeight;
+        frameWidth = Math.round(frameHeight * sourceAspect);
+      }
+      const frameLeft = Math.round((viewportWidth - frameWidth) / 2);
+      const frameTop = Math.round((viewportHeight - frameHeight) / 2);
+
       scene.style.setProperty("position", "fixed", "important");
       scene.style.setProperty("left", "0", "important");
       scene.style.setProperty("top", "0", "important");
       scene.style.setProperty("inset", "0", "important");
       scene.style.setProperty("width", `${viewportWidth}px`, "important");
       scene.style.setProperty("height", `${viewportHeight}px`, "important");
+      scene.style.setProperty("overflow", "hidden", "important");
+
+      const canvas =
+        scene.canvas ||
+        (scene.querySelector("canvas") as HTMLCanvasElement | null);
+      const arElements = document.querySelectorAll<HTMLElement>(
+        "#arjs-video, .arjs-video, .arjs-canvas, canvas.a-canvas",
+      );
+
+      const applyFrame = (element: HTMLElement) => {
+        element.style.setProperty("position", "fixed", "important");
+        element.style.setProperty("left", `${frameLeft}px`, "important");
+        element.style.setProperty("top", `${frameTop}px`, "important");
+        element.style.setProperty("width", `${frameWidth}px`, "important");
+        element.style.setProperty("height", `${frameHeight}px`, "important");
+        element.style.setProperty("max-width", "none", "important");
+        element.style.setProperty("max-height", "none", "important");
+        element.style.setProperty("margin", "0", "important");
+        element.style.setProperty("padding", "0", "important");
+      };
+
+      if (canvas) {
+        applyFrame(canvas);
+      }
+
+      for (const element of arElements) {
+        applyFrame(element);
+        if (element instanceof HTMLVideoElement) {
+          element.style.setProperty("object-fit", "fill", "important");
+          element.style.setProperty("object-position", "center center", "important");
+        }
+      }
 
       const anyScene = scene as unknown as {
         renderer?: {
@@ -156,6 +217,15 @@ export default function Home() {
 
       if (anyScene.renderer?.setPixelRatio) {
         anyScene.renderer.setPixelRatio(dpr);
+      }
+
+      if (anyScene.renderer?.setSize) {
+        anyScene.renderer.setSize(frameWidth, frameHeight, false);
+      }
+
+      if (anyScene.camera) {
+        anyScene.camera.aspect = frameWidth / frameHeight;
+        anyScene.camera.updateProjectionMatrix?.();
       }
     };
 

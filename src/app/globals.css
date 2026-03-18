@@ -60,8 +60,6 @@ body[data-ar-viewer="1"] {
 canvas.a-canvas {
   position: fixed !important;
   inset: 0 !important;
-  width: 100dvw !important;
-  height: 100dvh !important;
   margin: 0 !important;
   padding: 0 !important;
 }
@@ -70,10 +68,6 @@ canvas.a-canvas {
 .arjs-video {
   position: fixed !important;
   inset: 0 !important;
-  width: 100dvw !important;
-  height: 100dvh !important;
-  object-fit: cover !important;
-  object-position: center center !important;
   margin: 0 !important;
   padding: 0 !important;
 }
