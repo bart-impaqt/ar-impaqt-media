@@ -57,7 +57,6 @@ export default function Home() {
   const [orientation, setOrientation] = useState<Orientation>("Landscape");
   const [size, setSize] = useState<string>("43");
   const [mounted, setMounted] = useState(false);
-  const [modelAspectScaleX, setModelAspectScaleX] = useState(1);
   const [client, setClient] = useState<string>(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("selectedClient") || "";
@@ -65,12 +64,22 @@ export default function Home() {
     return "";
   });
   const [config, setConfig] = useState<ContentConfig | null>(null);
-  const [markerConfig, setMarkerConfig] = useState<MarkerConfigResponse | null>(null);
+  const [markerConfig, setMarkerConfig] = useState<MarkerConfigResponse | null>(
+    null,
+  );
+
   const sceneRef = useRef<
-    (HTMLElement & {
-      canvas?: HTMLCanvasElement;
-      renderer?: { setSize: (width: number, height: number, updateStyle?: boolean) => void };
-    }) | null
+    | (HTMLElement & {
+        canvas?: HTMLCanvasElement;
+        renderer?: {
+          setSize: (
+            width: number,
+            height: number,
+            updateStyle?: boolean,
+          ) => void;
+        };
+      })
+    | null
   >(null);
 
   useEffect(() => {
@@ -78,14 +87,13 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     const root = document.documentElement;
     const body = document.body;
     const previousRootStyle = root.getAttribute("style");
     const previousBodyStyle = body.getAttribute("style");
+
     root.setAttribute("data-ar-viewer", "1");
     body.setAttribute("data-ar-viewer", "1");
 
@@ -102,15 +110,11 @@ export default function Home() {
       body.style.setProperty("max-height", "100dvh", "important");
       body.style.setProperty("overflow", "hidden", "important");
       body.style.setProperty("margin", "0", "important");
-      body.style.setProperty("margin-left", "0px", "important");
-      body.style.setProperty("margin-top", "0px", "important");
       body.style.setProperty("padding", "0", "important");
     };
 
     const scene = sceneRef.current;
-    if (!scene) {
-      return;
-    }
+    if (!scene) return;
 
     let frameRequest = 0;
     const settleTimers: number[] = [];
@@ -128,22 +132,6 @@ export default function Home() {
         Math.round(vv?.height ?? window.innerHeight),
       );
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const viewportAspect = viewportWidth / viewportHeight;
-
-      const sourceVideo = document.querySelector<HTMLVideoElement>(
-        "#arjs-video, .arjs-video",
-      );
-      if (sourceVideo && sourceVideo.readyState < 1) {
-        sourceVideo.addEventListener("loadedmetadata", scheduleViewportSize, {
-          once: true,
-        });
-      }
-      const sourceAspect =
-        sourceVideo &&
-        sourceVideo.videoWidth > 0 &&
-        sourceVideo.videoHeight > 0
-          ? sourceVideo.videoWidth / sourceVideo.videoHeight
-          : viewportAspect;
 
       const canvas =
         scene.canvas ||
@@ -155,15 +143,9 @@ export default function Home() {
 
       const applyCoverSizing = (element: HTMLElement) => {
         element.style.setProperty("position", "fixed", "important");
-        element.style.setProperty("left", "50%", "important");
-        element.style.setProperty("top", "50%", "important");
-        element.style.setProperty("width", "auto", "important");
-        element.style.setProperty("height", "auto", "important");
-        element.style.setProperty("min-width", `${viewportWidth}px`, "important");
-        element.style.setProperty("min-height", `${viewportHeight}px`, "important");
-        element.style.setProperty("max-width", "none", "important");
-        element.style.setProperty("max-height", "none", "important");
-        element.style.setProperty("transform", "translate(-50%, -50%)", "important");
+        element.style.setProperty("inset", "0", "important");
+        element.style.setProperty("width", `${viewportWidth}px`, "important");
+        element.style.setProperty("height", `${viewportHeight}px`, "important");
         element.style.setProperty("margin", "0", "important");
         element.style.setProperty("padding", "0", "important");
       };
@@ -171,9 +153,9 @@ export default function Home() {
       scene.style.setProperty("position", "fixed", "important");
       scene.style.setProperty("left", "0", "important");
       scene.style.setProperty("top", "0", "important");
+      scene.style.setProperty("inset", "0", "important");
       scene.style.setProperty("width", `${viewportWidth}px`, "important");
       scene.style.setProperty("height", `${viewportHeight}px`, "important");
-      scene.style.setProperty("inset", "0", "important");
 
       if (canvas) {
         applyCoverSizing(canvas);
@@ -183,11 +165,12 @@ export default function Home() {
         applyCoverSizing(element);
 
         if (element instanceof HTMLVideoElement) {
-          element.style.removeProperty("min-width");
-          element.style.removeProperty("min-height");
-          element.style.removeProperty("width");
           element.style.setProperty("object-fit", "cover", "important");
-          element.style.setProperty("object-position", "center center", "important");
+          element.style.setProperty(
+            "object-position",
+            "center center",
+            "important",
+          );
         }
       }
 
@@ -209,13 +192,14 @@ export default function Home() {
         anyScene.renderer.setPixelRatio(dpr);
       }
 
-      const rawScaleX = sourceAspect / viewportAspect;
-      const nextScaleX = Number.isFinite(rawScaleX)
-        ? Math.min(3, Math.max(0.33, rawScaleX))
-        : 1;
-      setModelAspectScaleX((current) =>
-        Math.abs(current - nextScaleX) > 0.01 ? nextScaleX : current
-      );
+      if (anyScene.renderer?.setSize) {
+        anyScene.renderer.setSize(viewportWidth, viewportHeight, false);
+      }
+
+      if (anyScene.camera) {
+        anyScene.camera.aspect = viewportWidth / viewportHeight;
+        anyScene.camera.updateProjectionMatrix?.();
+      }
     };
 
     const scheduleViewportSize = () => {
@@ -234,25 +218,32 @@ export default function Home() {
     settleTimers.push(
       window.setTimeout(scheduleViewportSize, 120),
       window.setTimeout(scheduleViewportSize, 400),
-      window.setTimeout(scheduleViewportSize, 1000)
+      window.setTimeout(scheduleViewportSize, 1000),
     );
 
     return () => {
       scene.removeEventListener("loaded", onSceneLoaded);
       window.removeEventListener("resize", scheduleViewportSize);
       window.removeEventListener("orientationchange", scheduleViewportSize);
-      window.visualViewport?.removeEventListener("resize", scheduleViewportSize);
+      window.visualViewport?.removeEventListener(
+        "resize",
+        scheduleViewportSize,
+      );
       window.cancelAnimationFrame(frameRequest);
+
       for (const timer of settleTimers) {
         window.clearTimeout(timer);
       }
+
       root.removeAttribute("data-ar-viewer");
       body.removeAttribute("data-ar-viewer");
+
       if (previousRootStyle === null) {
         root.removeAttribute("style");
       } else {
         root.setAttribute("style", previousRootStyle);
       }
+
       if (previousBodyStyle === null) {
         body.removeAttribute("style");
       } else {
@@ -265,19 +256,23 @@ export default function Home() {
     Promise.all([fetch("/api/config"), fetch("/api/markers")])
       .then(async ([configResponse, markerResponse]) => {
         const configPayload = (await configResponse.json()) as ContentConfig;
-        const markerPayload = (await markerResponse.json()) as MarkerConfigResponse;
+        const markerPayload =
+          (await markerResponse.json()) as MarkerConfigResponse;
 
         setConfig(configPayload);
         setMarkerConfig(markerPayload);
       })
-      .catch((err) => console.error("Error loading viewer data:", err))
-      .finally(() => setMounted(true));
+      .catch((err) => console.error("Error loading viewer data:", err));
   }, []);
 
   const data = SCREENS[series][size as keyof (typeof SCREENS)[typeof series]];
-  const displayAspect = 16 / 9;
-  const width = data.B * 0.01;
-  const height = width / displayAspect;
+
+  const outerWidth = data.B * 0.01;
+  const outerHeight = data.H * 0.01;
+  const outerDepth = data.D * 0.01;
+
+  const visibleWidth = Math.max(0.01, (data.B - data.Bezel * 2) * 0.01);
+  const visibleHeight = Math.max(0.01, (data.H - data.Bezel * 2) * 0.01);
 
   const markerMap = useMemo(() => {
     const map = new Map<string, MarkerOption>();
@@ -305,8 +300,9 @@ export default function Home() {
 
   const resolvedAssignments = assignments.filter(
     (assignment) =>
-      markerMap.has(assignment.id) || LEGACY_MARKER_IDS.has(assignment.id)
+      markerMap.has(assignment.id) || LEGACY_MARKER_IDS.has(assignment.id),
   );
+
   const activeAssignments =
     resolvedAssignments.length > 0 ? resolvedAssignments : [fallbackAssignment];
 
@@ -317,7 +313,7 @@ export default function Home() {
   useEffect(() => {
     const unlock = () => {
       const videos = document.querySelectorAll<HTMLVideoElement>(
-        "video[data-ar-video='1']"
+        "video[data-ar-video='1']",
       );
 
       for (const video of videos) {
@@ -346,12 +342,14 @@ export default function Home() {
 
   const handleFlip = () => {
     if (flipDisabled) {
-      alert("Assignments are orientation-locked. Update orientation in Dashboard.");
+      alert(
+        "Assignments are orientation-locked. Update orientation in Dashboard.",
+      );
       return;
     }
 
     setOrientation((current) =>
-      current === "Landscape" ? "Portrait" : "Landscape"
+      current === "Landscape" ? "Portrait" : "Landscape",
     );
   };
 
@@ -396,21 +394,24 @@ export default function Home() {
                 muted
                 playsInline
                 data-ar-video="1"
-              ></video>
+              />
             );
           })}
         </a-assets>
 
         {activeAssignments.map((assignment, index) => {
           const markerOrientation = assignment.orientation || orientation;
+
+          const bodyWidth =
+            markerOrientation === "Landscape" ? outerWidth : outerHeight;
+          const bodyHeight =
+            markerOrientation === "Landscape" ? outerHeight : outerWidth;
+
           const screenWidth =
-            markerOrientation === "Landscape" ? width : height;
+            markerOrientation === "Landscape" ? visibleWidth : visibleHeight;
           const screenHeight =
-            markerOrientation === "Landscape" ? height : width;
-          const compensatedScreenWidth = screenWidth * modelAspectScaleX;
-          const screenMarginScale = 0.95;
-          const videoWidth = compensatedScreenWidth * screenMarginScale;
-          const videoHeight = screenHeight * screenMarginScale;
+            markerOrientation === "Landscape" ? visibleHeight : visibleWidth;
+
           const videoId = buildVideoId(assignment.id, index);
 
           return (
@@ -427,15 +428,15 @@ export default function Home() {
             >
               <a-entity rotation="-90 0 0" position="0 0 0.05">
                 <a-box
-                  depth="0.15"
-                  width={compensatedScreenWidth}
-                  height={screenHeight}
+                  depth={outerDepth}
+                  width={bodyWidth}
+                  height={bodyHeight}
                   color="black"
                 />
                 <a-plane
                   position="0 0 0.08"
-                  width={videoWidth}
-                  height={videoHeight}
+                  width={screenWidth}
+                  height={screenHeight}
                   material={`src: #${videoId}`}
                 />
               </a-entity>
@@ -443,7 +444,7 @@ export default function Home() {
           );
         })}
 
-        <a-entity camera></a-entity>
+        <a-entity camera />
       </a-scene>
 
       <div className="fixed top-2 left-2 z-50 w-80 max-w-[95vw] md:w-auto md:max-w-[calc(100vw-20rem)] overflow-x-hidden">
@@ -490,7 +491,9 @@ export default function Home() {
 
       <div className="fixed left-2 top-[7.5rem] z-50 w-80 max-w-[95vw] md:top-2 md:left-auto md:right-2 md:w-72 bg-black/75 border border-white/10 backdrop-blur p-2.5 rounded-xl text-white space-y-2 overflow-hidden">
         <div>
-          <label className="block text-gray-300 text-sm mb-1">Select Client</label>
+          <label className="block text-gray-300 text-sm mb-1">
+            Select Client
+          </label>
           <select
             value={client}
             onChange={(e) => {
