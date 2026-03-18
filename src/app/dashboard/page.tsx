@@ -88,6 +88,33 @@ export default function Dashboard() {
     null
   );
 
+  useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+
+    root.removeAttribute("data-ar-viewer");
+    body.removeAttribute("data-ar-viewer");
+
+    const resetProps = [
+      "width",
+      "height",
+      "max-width",
+      "max-height",
+      "overflow",
+      "position",
+      "inset",
+      "margin",
+      "padding",
+      "margin-left",
+      "margin-top",
+    ];
+
+    for (const prop of resetProps) {
+      root.style.removeProperty(prop);
+      body.style.removeProperty(prop);
+    }
+  }, []);
+
   const selectedMarker = useMemo(
     () => markers.find((candidate) => candidate.id === marker) ?? null,
     [markers, marker]

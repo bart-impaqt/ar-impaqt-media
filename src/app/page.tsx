@@ -56,6 +56,7 @@ export default function Home() {
   const [series, setSeries] = useState<"QMC" | "OMD">("QMC");
   const [orientation, setOrientation] = useState<Orientation>("Landscape");
   const [size, setSize] = useState<string>("43");
+  const [modelAspectScaleX, setModelAspectScaleX] = useState(1);
   const [mounted, setMounted] = useState(false);
   const [client, setClient] = useState<string>(() => {
     if (typeof window !== "undefined") {
@@ -94,9 +95,6 @@ export default function Home() {
     const previousRootStyle = root.getAttribute("style");
     const previousBodyStyle = body.getAttribute("style");
 
-    root.setAttribute("data-ar-viewer", "1");
-    body.setAttribute("data-ar-viewer", "1");
-
     const lockDocumentViewport = () => {
       root.style.setProperty("width", "100dvw", "important");
       root.style.setProperty("height", "100dvh", "important");
@@ -116,6 +114,9 @@ export default function Home() {
     const scene = sceneRef.current;
     if (!scene) return;
 
+    root.setAttribute("data-ar-viewer", "1");
+    body.setAttribute("data-ar-viewer", "1");
+
     let frameRequest = 0;
     const settleTimers: number[] = [];
 
@@ -132,6 +133,17 @@ export default function Home() {
         Math.round(vv?.height ?? window.innerHeight),
       );
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const viewportAspect = viewportWidth / viewportHeight;
+
+      const sourceVideo = document.querySelector<HTMLVideoElement>(
+        "#arjs-video, .arjs-video",
+      );
+      const sourceAspect =
+        sourceVideo &&
+        sourceVideo.videoWidth > 0 &&
+        sourceVideo.videoHeight > 0
+          ? sourceVideo.videoWidth / sourceVideo.videoHeight
+          : viewportAspect;
 
       const canvas =
         scene.canvas ||
@@ -192,14 +204,13 @@ export default function Home() {
         anyScene.renderer.setPixelRatio(dpr);
       }
 
-      if (anyScene.renderer?.setSize) {
-        anyScene.renderer.setSize(viewportWidth, viewportHeight, false);
-      }
-
-      if (anyScene.camera) {
-        anyScene.camera.aspect = viewportWidth / viewportHeight;
-        anyScene.camera.updateProjectionMatrix?.();
-      }
+      const rawScaleX = sourceAspect / viewportAspect;
+      const correctedScaleX = Number.isFinite(rawScaleX)
+        ? Math.min(3, Math.max(0.33, rawScaleX))
+        : 1;
+      setModelAspectScaleX((current) =>
+        Math.abs(current - correctedScaleX) > 0.01 ? correctedScaleX : current,
+      );
     };
 
     const scheduleViewportSize = () => {
@@ -267,12 +278,14 @@ export default function Home() {
 
   const data = SCREENS[series][size as keyof (typeof SCREENS)[typeof series]];
 
+  const targetAspect = 16 / 9;
   const outerWidth = data.B * 0.01;
-  const outerHeight = data.H * 0.01;
+  const outerHeight = outerWidth / targetAspect;
   const outerDepth = data.D * 0.01;
 
-  const visibleWidth = Math.max(0.01, (data.B - data.Bezel * 2) * 0.01);
-  const visibleHeight = Math.max(0.01, (data.H - data.Bezel * 2) * 0.01);
+  const bezelScale = Math.min(0.98, Math.max(0.7, 1 - (data.Bezel * 2) / data.B));
+  const visibleWidth = Math.max(0.01, outerWidth * bezelScale);
+  const visibleHeight = Math.max(0.01, outerHeight * bezelScale);
 
   const markerMap = useMemo(() => {
     const map = new Map<string, MarkerOption>();
@@ -406,11 +419,13 @@ export default function Home() {
             markerOrientation === "Landscape" ? outerWidth : outerHeight;
           const bodyHeight =
             markerOrientation === "Landscape" ? outerHeight : outerWidth;
+          const correctedBodyWidth = bodyWidth * modelAspectScaleX;
 
           const screenWidth =
             markerOrientation === "Landscape" ? visibleWidth : visibleHeight;
           const screenHeight =
             markerOrientation === "Landscape" ? visibleHeight : visibleWidth;
+          const correctedScreenWidth = screenWidth * modelAspectScaleX;
 
           const videoId = buildVideoId(assignment.id, index);
 
@@ -429,13 +444,13 @@ export default function Home() {
               <a-entity rotation="-90 0 0" position="0 0 0.05">
                 <a-box
                   depth={outerDepth}
-                  width={bodyWidth}
+                  width={correctedBodyWidth}
                   height={bodyHeight}
                   color="black"
                 />
                 <a-plane
                   position="0 0 0.08"
-                  width={screenWidth}
+                  width={correctedScreenWidth}
                   height={screenHeight}
                   material={`src: #${videoId}`}
                 />
