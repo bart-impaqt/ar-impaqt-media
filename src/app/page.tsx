@@ -56,7 +56,6 @@ export default function Home() {
   const [series, setSeries] = useState<"QMC" | "OMD">("QMC");
   const [orientation, setOrientation] = useState<Orientation>("Landscape");
   const [size, setSize] = useState<string>("43");
-  const [modelAspectScaleX, setModelAspectScaleX] = useState(1);
   const [mounted, setMounted] = useState(false);
   const [client, setClient] = useState<string>(() => {
     if (typeof window !== "undefined") {
@@ -133,34 +132,6 @@ export default function Home() {
         Math.round(vv?.height ?? window.innerHeight),
       );
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const viewportAspect = viewportWidth / viewportHeight;
-
-      const sourceVideo = document.querySelector<HTMLVideoElement>(
-        "#arjs-video, .arjs-video",
-      );
-      const sourceAspect =
-        sourceVideo &&
-        sourceVideo.videoWidth > 0 &&
-        sourceVideo.videoHeight > 0
-          ? sourceVideo.videoWidth / sourceVideo.videoHeight
-          : viewportAspect;
-
-      const canvas =
-        scene.canvas ||
-        (scene.querySelector("canvas") as HTMLCanvasElement | null);
-
-      const arElements = document.querySelectorAll<HTMLElement>(
-        "#arjs-video, .arjs-video, .arjs-canvas, canvas.a-canvas",
-      );
-
-      const applyCoverSizing = (element: HTMLElement) => {
-        element.style.setProperty("position", "fixed", "important");
-        element.style.setProperty("inset", "0", "important");
-        element.style.setProperty("width", `${viewportWidth}px`, "important");
-        element.style.setProperty("height", `${viewportHeight}px`, "important");
-        element.style.setProperty("margin", "0", "important");
-        element.style.setProperty("padding", "0", "important");
-      };
 
       scene.style.setProperty("position", "fixed", "important");
       scene.style.setProperty("left", "0", "important");
@@ -168,23 +139,6 @@ export default function Home() {
       scene.style.setProperty("inset", "0", "important");
       scene.style.setProperty("width", `${viewportWidth}px`, "important");
       scene.style.setProperty("height", `${viewportHeight}px`, "important");
-
-      if (canvas) {
-        applyCoverSizing(canvas);
-      }
-
-      for (const element of arElements) {
-        applyCoverSizing(element);
-
-        if (element instanceof HTMLVideoElement) {
-          element.style.setProperty("object-fit", "cover", "important");
-          element.style.setProperty(
-            "object-position",
-            "center center",
-            "important",
-          );
-        }
-      }
 
       const anyScene = scene as unknown as {
         renderer?: {
@@ -203,14 +157,6 @@ export default function Home() {
       if (anyScene.renderer?.setPixelRatio) {
         anyScene.renderer.setPixelRatio(dpr);
       }
-
-      const rawScaleX = sourceAspect / viewportAspect;
-      const correctedScaleX = Number.isFinite(rawScaleX)
-        ? Math.min(3, Math.max(0.33, rawScaleX))
-        : 1;
-      setModelAspectScaleX((current) =>
-        Math.abs(current - correctedScaleX) > 0.01 ? correctedScaleX : current,
-      );
     };
 
     const scheduleViewportSize = () => {
@@ -282,6 +228,7 @@ export default function Home() {
   const outerWidth = data.B * 0.01;
   const outerHeight = outerWidth / targetAspect;
   const outerDepth = data.D * 0.01;
+  const screenPlaneOffset = outerDepth / 2 + 0.002;
 
   const bezelScale = Math.min(0.98, Math.max(0.7, 1 - (data.Bezel * 2) / data.B));
   const visibleWidth = Math.max(0.01, outerWidth * bezelScale);
@@ -332,6 +279,9 @@ export default function Home() {
       for (const video of videos) {
         video.muted = true;
         video.playsInline = true;
+        video.autoplay = true;
+        video.setAttribute("playsinline", "true");
+        video.setAttribute("webkit-playsinline", "true");
         video.loop = true;
         video.play().catch((err) => {
           console.warn("Video play blocked:", err);
@@ -403,6 +353,7 @@ export default function Home() {
                 src={assignment.video || DEFAULT_VIDEO}
                 preload="auto"
                 crossOrigin="anonymous"
+                autoPlay
                 loop
                 muted
                 playsInline
@@ -419,13 +370,11 @@ export default function Home() {
             markerOrientation === "Landscape" ? outerWidth : outerHeight;
           const bodyHeight =
             markerOrientation === "Landscape" ? outerHeight : outerWidth;
-          const correctedBodyWidth = bodyWidth * modelAspectScaleX;
 
           const screenWidth =
             markerOrientation === "Landscape" ? visibleWidth : visibleHeight;
           const screenHeight =
             markerOrientation === "Landscape" ? visibleHeight : visibleWidth;
-          const correctedScreenWidth = screenWidth * modelAspectScaleX;
 
           const videoId = buildVideoId(assignment.id, index);
 
@@ -444,15 +393,15 @@ export default function Home() {
               <a-entity rotation="-90 0 0" position="0 0 0.05">
                 <a-box
                   depth={outerDepth}
-                  width={correctedBodyWidth}
+                  width={bodyWidth}
                   height={bodyHeight}
                   color="black"
                 />
                 <a-plane
-                  position="0 0 0.08"
-                  width={correctedScreenWidth}
+                  position={`0 0 ${screenPlaneOffset}`}
+                  width={screenWidth}
                   height={screenHeight}
-                  material={`src: #${videoId}`}
+                  material={`src: #${videoId}; side: double; shader: flat;`}
                 />
               </a-entity>
             </a-marker>
