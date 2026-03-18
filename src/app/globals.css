@@ -73,8 +73,6 @@ body[data-ar-viewer="1"] {
 }
 
 .ar-scene canvas,
-#arjs-video,
-.arjs-video,
 .arjs-canvas,
 canvas.a-canvas {
   position: fixed !important;
@@ -84,6 +82,20 @@ canvas.a-canvas {
   height: auto !important;
   min-width: 100dvw !important;
   min-height: 100dvh !important;
+  transform: translate(-50%, -50%) !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#arjs-video,
+.arjs-video {
+  position: fixed !important;
+  left: 50% !important;
+  top: 50% !important;
+  width: auto !important;
+  height: auto !important;
   transform: translate(-50%, -50%) !important;
   max-width: none !important;
   max-height: none !important;

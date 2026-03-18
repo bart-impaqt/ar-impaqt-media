@@ -57,6 +57,7 @@ export default function Home() {
   const [orientation, setOrientation] = useState<Orientation>("Landscape");
   const [size, setSize] = useState<string>("43");
   const [mounted, setMounted] = useState(false);
+  const [modelAspectScaleX, setModelAspectScaleX] = useState(1);
   const [client, setClient] = useState<string>(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("selectedClient") || "";
@@ -191,6 +192,37 @@ export default function Home() {
       if (anyScene.renderer?.setPixelRatio) {
         anyScene.renderer.setPixelRatio(dpr);
       }
+
+      window.requestAnimationFrame(() => {
+        const targetCanvas =
+          canvas ||
+          (scene.querySelector("canvas") as HTMLCanvasElement | null);
+
+        if (!targetCanvas) {
+          return;
+        }
+
+        const rect = targetCanvas.getBoundingClientRect();
+        const displayAspect =
+          rect.width > 0 && rect.height > 0
+            ? rect.width / rect.height
+            : viewportWidth / viewportHeight;
+        const internalAspect =
+          targetCanvas.width > 0 && targetCanvas.height > 0
+            ? targetCanvas.width / targetCanvas.height
+            : displayAspect;
+
+        if (!Number.isFinite(displayAspect) || !Number.isFinite(internalAspect)) {
+          return;
+        }
+
+        const rawScaleX = internalAspect / displayAspect;
+        const nextScaleX = Math.min(3, Math.max(0.33, rawScaleX));
+
+        setModelAspectScaleX((current) =>
+          Math.abs(current - nextScaleX) > 0.01 ? nextScaleX : current
+        );
+      });
     };
 
     const scheduleViewportSize = () => {
@@ -382,8 +414,9 @@ export default function Home() {
             markerOrientation === "Landscape" ? width : height;
           const screenHeight =
             markerOrientation === "Landscape" ? height : width;
+          const compensatedScreenWidth = screenWidth * modelAspectScaleX;
           const screenMarginScale = 0.95;
-          const videoWidth = screenWidth * screenMarginScale;
+          const videoWidth = compensatedScreenWidth * screenMarginScale;
           const videoHeight = screenHeight * screenMarginScale;
           const videoId = buildVideoId(assignment.id, index);
 
@@ -402,7 +435,7 @@ export default function Home() {
               <a-entity rotation="-90 0 0" position="0 0 0.05">
                 <a-box
                   depth="0.15"
-                  width={screenWidth}
+                  width={compensatedScreenWidth}
                   height={screenHeight}
                   color="black"
                 />
