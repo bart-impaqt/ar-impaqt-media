@@ -128,6 +128,22 @@ export default function Home() {
         Math.round(vv?.height ?? window.innerHeight),
       );
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const viewportAspect = viewportWidth / viewportHeight;
+
+      const sourceVideo = document.querySelector<HTMLVideoElement>(
+        "#arjs-video, .arjs-video",
+      );
+      if (sourceVideo && sourceVideo.readyState < 1) {
+        sourceVideo.addEventListener("loadedmetadata", scheduleViewportSize, {
+          once: true,
+        });
+      }
+      const sourceAspect =
+        sourceVideo &&
+        sourceVideo.videoWidth > 0 &&
+        sourceVideo.videoHeight > 0
+          ? sourceVideo.videoWidth / sourceVideo.videoHeight
+          : viewportAspect;
 
       const canvas =
         scene.canvas ||
@@ -193,36 +209,13 @@ export default function Home() {
         anyScene.renderer.setPixelRatio(dpr);
       }
 
-      window.requestAnimationFrame(() => {
-        const targetCanvas =
-          canvas ||
-          (scene.querySelector("canvas") as HTMLCanvasElement | null);
-
-        if (!targetCanvas) {
-          return;
-        }
-
-        const rect = targetCanvas.getBoundingClientRect();
-        const displayAspect =
-          rect.width > 0 && rect.height > 0
-            ? rect.width / rect.height
-            : viewportWidth / viewportHeight;
-        const internalAspect =
-          targetCanvas.width > 0 && targetCanvas.height > 0
-            ? targetCanvas.width / targetCanvas.height
-            : displayAspect;
-
-        if (!Number.isFinite(displayAspect) || !Number.isFinite(internalAspect)) {
-          return;
-        }
-
-        const rawScaleX = internalAspect / displayAspect;
-        const nextScaleX = Math.min(3, Math.max(0.33, rawScaleX));
-
-        setModelAspectScaleX((current) =>
-          Math.abs(current - nextScaleX) > 0.01 ? nextScaleX : current
-        );
-      });
+      const rawScaleX = sourceAspect / viewportAspect;
+      const nextScaleX = Number.isFinite(rawScaleX)
+        ? Math.min(3, Math.max(0.33, rawScaleX))
+        : 1;
+      setModelAspectScaleX((current) =>
+        Math.abs(current - nextScaleX) > 0.01 ? nextScaleX : current
+      );
     };
 
     const scheduleViewportSize = () => {
