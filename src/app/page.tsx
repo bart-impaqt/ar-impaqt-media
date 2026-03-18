@@ -127,36 +127,6 @@ export default function Home() {
         Math.round(vv?.height ?? window.innerHeight),
       );
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const viewportAspect = viewportWidth / viewportHeight;
-
-      const sourceVideo = document.querySelector<HTMLVideoElement>(
-        "#arjs-video, .arjs-video",
-      );
-      if (sourceVideo && sourceVideo.readyState < 1) {
-        sourceVideo.addEventListener("loadedmetadata", scheduleViewportSize, {
-          once: true,
-        });
-      }
-
-      const sourceAspect =
-        sourceVideo &&
-        sourceVideo.videoWidth > 0 &&
-        sourceVideo.videoHeight > 0
-          ? sourceVideo.videoWidth / sourceVideo.videoHeight
-          : viewportAspect;
-
-      let displayWidth = viewportWidth;
-      let displayHeight = viewportHeight;
-      if (viewportAspect < sourceAspect) {
-        displayHeight = viewportHeight;
-        displayWidth = Math.round(displayHeight * sourceAspect);
-      } else {
-        displayWidth = viewportWidth;
-        displayHeight = Math.round(displayWidth / sourceAspect);
-      }
-
-      const offsetLeft = Math.round((viewportWidth - displayWidth) / 2);
-      const offsetTop = Math.round((viewportHeight - displayHeight) / 2);
 
       const canvas =
         scene.canvas ||
@@ -166,43 +136,41 @@ export default function Home() {
         "#arjs-video, .arjs-video, .arjs-canvas, canvas.a-canvas",
       );
 
+      const applyCoverSizing = (element: HTMLElement) => {
+        element.style.setProperty("position", "fixed", "important");
+        element.style.setProperty("left", "50%", "important");
+        element.style.setProperty("top", "50%", "important");
+        element.style.setProperty("width", "auto", "important");
+        element.style.setProperty("height", "auto", "important");
+        element.style.setProperty("min-width", `${viewportWidth}px`, "important");
+        element.style.setProperty("min-height", `${viewportHeight}px`, "important");
+        element.style.setProperty("max-width", "none", "important");
+        element.style.setProperty("max-height", "none", "important");
+        element.style.setProperty("transform", "translate(-50%, -50%)", "important");
+        element.style.setProperty("margin", "0", "important");
+        element.style.setProperty("padding", "0", "important");
+      };
+
       scene.style.setProperty("position", "fixed", "important");
       scene.style.setProperty("left", "0", "important");
       scene.style.setProperty("top", "0", "important");
       scene.style.setProperty("width", `${viewportWidth}px`, "important");
       scene.style.setProperty("height", `${viewportHeight}px`, "important");
       scene.style.setProperty("inset", "0", "important");
-      scene.style.setProperty("overflow", "hidden", "important");
 
       if (canvas) {
-        canvas.style.setProperty("position", "fixed", "important");
-        canvas.style.setProperty("left", `${offsetLeft}px`, "important");
-        canvas.style.setProperty("top", `${offsetTop}px`, "important");
-        canvas.style.setProperty("width", `${displayWidth}px`, "important");
-        canvas.style.setProperty("height", `${displayHeight}px`, "important");
-        canvas.style.setProperty("max-width", "none", "important");
-        canvas.style.setProperty("max-height", "none", "important");
-        canvas.style.setProperty("margin", "0", "important");
-        canvas.style.setProperty("padding", "0", "important");
-        canvas.style.setProperty("object-fit", "cover", "important");
-        canvas.style.setProperty("object-position", "center center", "important");
+        applyCoverSizing(canvas);
       }
 
       for (const element of arElements) {
-        element.style.setProperty("position", "fixed", "important");
-        element.style.setProperty("left", `${offsetLeft}px`, "important");
-        element.style.setProperty("top", `${offsetTop}px`, "important");
-        element.style.setProperty("width", `${displayWidth}px`, "important");
-        element.style.setProperty("height", `${displayHeight}px`, "important");
-        element.style.setProperty("max-width", "none", "important");
-        element.style.setProperty("max-height", "none", "important");
-        element.style.setProperty("margin", "0", "important");
-        element.style.setProperty("padding", "0", "important");
-        element.style.setProperty("object-fit", "cover", "important");
-        element.style.setProperty("object-position", "center center", "important");
+        applyCoverSizing(element);
 
         if (element instanceof HTMLVideoElement) {
+          element.style.removeProperty("min-width");
+          element.style.removeProperty("min-height");
+          element.style.removeProperty("width");
           element.style.setProperty("object-fit", "cover", "important");
+          element.style.setProperty("object-position", "center center", "important");
         }
       }
 
@@ -222,10 +190,6 @@ export default function Home() {
 
       if (anyScene.renderer?.setPixelRatio) {
         anyScene.renderer.setPixelRatio(dpr);
-      }
-
-      if (anyScene.renderer?.setSize) {
-        anyScene.renderer.setSize(displayWidth, displayHeight, false);
       }
     };
 
