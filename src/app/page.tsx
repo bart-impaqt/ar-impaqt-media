@@ -127,6 +127,28 @@ export default function Home() {
         Math.round(vv?.height ?? window.innerHeight),
       );
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const viewportAspect = viewportWidth / viewportHeight;
+
+      const sourceVideo = document.querySelector<HTMLVideoElement>(
+        "#arjs-video, .arjs-video",
+      );
+      const sourceAspect =
+        sourceVideo &&
+        sourceVideo.videoWidth > 0 &&
+        sourceVideo.videoHeight > 0
+          ? sourceVideo.videoWidth / sourceVideo.videoHeight
+          : viewportAspect;
+
+      let renderWidth = viewportWidth;
+      let renderHeight = viewportHeight;
+
+      if (sourceAspect > viewportAspect) {
+        renderHeight = viewportHeight;
+        renderWidth = Math.round(renderHeight * sourceAspect);
+      } else {
+        renderWidth = viewportWidth;
+        renderHeight = Math.round(renderWidth / sourceAspect);
+      }
 
       const canvas =
         scene.canvas ||
@@ -144,9 +166,6 @@ export default function Home() {
       scene.style.setProperty("inset", "0", "important");
 
       if (canvas) {
-        canvas.width = Math.round(viewportWidth * dpr);
-        canvas.height = Math.round(viewportHeight * dpr);
-
         canvas.style.setProperty("position", "fixed", "important");
         canvas.style.setProperty("left", "0", "important");
         canvas.style.setProperty("top", "0", "important");
@@ -156,6 +175,8 @@ export default function Home() {
         canvas.style.setProperty("max-height", "none", "important");
         canvas.style.setProperty("margin", "0", "important");
         canvas.style.setProperty("padding", "0", "important");
+        canvas.style.setProperty("object-fit", "cover", "important");
+        canvas.style.setProperty("object-position", "center center", "important");
       }
 
       for (const element of arElements) {
@@ -168,6 +189,8 @@ export default function Home() {
         element.style.setProperty("max-height", "none", "important");
         element.style.setProperty("margin", "0", "important");
         element.style.setProperty("padding", "0", "important");
+        element.style.setProperty("object-fit", "cover", "important");
+        element.style.setProperty("object-position", "center center", "important");
 
         if (element instanceof HTMLVideoElement) {
           element.style.setProperty("object-fit", "cover", "important");
@@ -191,12 +214,7 @@ export default function Home() {
       }
 
       if (anyScene.renderer?.setSize) {
-        anyScene.renderer.setSize(viewportWidth, viewportHeight, false);
-      }
-
-      if (anyScene.camera) {
-        anyScene.camera.aspect = viewportWidth / viewportHeight;
-        anyScene.camera.updateProjectionMatrix?.();
+        anyScene.renderer.setSize(renderWidth, renderHeight, false);
       }
 
       anyScene.resize?.();

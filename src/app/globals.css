@@ -72,6 +72,8 @@ canvas.a-canvas {
   inset: 0 !important;
   width: 100dvw !important;
   height: 100dvh !important;
+  object-fit: cover !important;
+  object-position: center center !important;
   max-width: none !important;
   max-height: none !important;
   margin: 0 !important;
