@@ -127,28 +127,6 @@ export default function Home() {
         Math.round(vv?.height ?? window.innerHeight),
       );
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const viewportAspect = viewportWidth / viewportHeight;
-
-      const sourceVideo = document.querySelector<HTMLVideoElement>(
-        "#arjs-video, .arjs-video",
-      );
-      const sourceAspect =
-        sourceVideo &&
-        sourceVideo.videoWidth > 0 &&
-        sourceVideo.videoHeight > 0
-          ? sourceVideo.videoWidth / sourceVideo.videoHeight
-          : viewportAspect;
-
-      let renderWidth = viewportWidth;
-      let renderHeight = viewportHeight;
-
-      if (sourceAspect > viewportAspect) {
-        renderHeight = viewportHeight;
-        renderWidth = Math.round(renderHeight * sourceAspect);
-      } else {
-        renderWidth = viewportWidth;
-        renderHeight = Math.round(renderWidth / sourceAspect);
-      }
 
       const canvas =
         scene.canvas ||
@@ -214,7 +192,7 @@ export default function Home() {
       }
 
       if (anyScene.renderer?.setSize) {
-        anyScene.renderer.setSize(renderWidth, renderHeight, false);
+        anyScene.renderer.setSize(viewportWidth, viewportHeight, false);
       }
 
       anyScene.resize?.();
