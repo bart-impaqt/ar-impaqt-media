@@ -25,7 +25,7 @@ body {
   height: 100%;
   margin: 0;
   padding: 0;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 body {
@@ -34,40 +34,13 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-html[data-ar-viewer="1"],
-body[data-ar-viewer="1"] {
-  width: 100dvw !important;
-  height: 100dvh !important;
-  overflow: hidden !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  position: fixed !important;
-  inset: 0 !important;
-}
-
-.ar-scene {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100dvw !important;
-  height: 100dvh !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  overflow: hidden !important;
-}
-
-.ar-scene canvas,
-.arjs-canvas,
-canvas.a-canvas {
-  position: fixed !important;
-  inset: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
+/* Keep AR.js camera and render layers aligned and centered on mobile. */
 #arjs-video,
-.arjs-video {
-  position: fixed !important;
-  inset: 0 !important;
+.arjs-video,
+canvas.a-canvas,
+.arjs-canvas {
   margin: 0 !important;
-  padding: 0 !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
 }

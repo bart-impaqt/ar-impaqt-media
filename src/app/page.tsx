@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Orientation = "Landscape" | "Portrait";
 
@@ -68,216 +68,9 @@ export default function Home() {
     null,
   );
 
-  const sceneRef = useRef<
-    | (HTMLElement & {
-        canvas?: HTMLCanvasElement;
-        renderer?: {
-          setSize: (
-            width: number,
-            height: number,
-            updateStyle?: boolean,
-          ) => void;
-        };
-      })
-    | null
-  >(null);
-
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-
-    const root = document.documentElement;
-    const body = document.body;
-    const previousRootStyle = root.getAttribute("style");
-    const previousBodyStyle = body.getAttribute("style");
-
-    const lockDocumentViewport = () => {
-      root.style.setProperty("width", "100dvw", "important");
-      root.style.setProperty("height", "100dvh", "important");
-      root.style.setProperty("overflow", "hidden", "important");
-      root.style.setProperty("margin", "0", "important");
-      root.style.setProperty("padding", "0", "important");
-
-      body.style.setProperty("width", "100dvw", "important");
-      body.style.setProperty("height", "100dvh", "important");
-      body.style.setProperty("max-width", "100dvw", "important");
-      body.style.setProperty("max-height", "100dvh", "important");
-      body.style.setProperty("overflow", "hidden", "important");
-      body.style.setProperty("margin", "0", "important");
-      body.style.setProperty("padding", "0", "important");
-    };
-
-    const scene = sceneRef.current;
-    if (!scene) return;
-
-    root.setAttribute("data-ar-viewer", "1");
-    body.setAttribute("data-ar-viewer", "1");
-
-    let frameRequest = 0;
-    const settleTimers: number[] = [];
-
-    const applyViewportSize = () => {
-      lockDocumentViewport();
-
-      const vv = window.visualViewport;
-      const viewportWidth = Math.max(
-        1,
-        Math.round(vv?.width ?? window.innerWidth),
-      );
-      const viewportHeight = Math.max(
-        1,
-        Math.round(vv?.height ?? window.innerHeight),
-      );
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-      const sourceVideo = document.querySelector<HTMLVideoElement>(
-        "#arjs-video, .arjs-video",
-      );
-      if (sourceVideo && sourceVideo.readyState < 1) {
-        sourceVideo.addEventListener("loadedmetadata", scheduleViewportSize, {
-          once: true,
-        });
-      }
-
-      const sourceAspect =
-        sourceVideo &&
-        sourceVideo.videoWidth > 0 &&
-        sourceVideo.videoHeight > 0
-          ? sourceVideo.videoWidth / sourceVideo.videoHeight
-          : 16 / 9;
-
-      const viewportAspect = viewportWidth / viewportHeight;
-      let frameWidth = viewportWidth;
-      let frameHeight = viewportHeight;
-      if (viewportAspect > sourceAspect) {
-        frameWidth = viewportWidth;
-        frameHeight = Math.round(frameWidth / sourceAspect);
-      } else {
-        frameHeight = viewportHeight;
-        frameWidth = Math.round(frameHeight * sourceAspect);
-      }
-      const frameLeft = Math.round((viewportWidth - frameWidth) / 2);
-      const frameTop = Math.round((viewportHeight - frameHeight) / 2);
-
-      scene.style.setProperty("position", "fixed", "important");
-      scene.style.setProperty("left", "0", "important");
-      scene.style.setProperty("top", "0", "important");
-      scene.style.setProperty("inset", "0", "important");
-      scene.style.setProperty("width", `${viewportWidth}px`, "important");
-      scene.style.setProperty("height", `${viewportHeight}px`, "important");
-      scene.style.setProperty("overflow", "hidden", "important");
-
-      const canvas =
-        scene.canvas ||
-        (scene.querySelector("canvas") as HTMLCanvasElement | null);
-      const arElements = document.querySelectorAll<HTMLElement>(
-        "#arjs-video, .arjs-video, .arjs-canvas, canvas.a-canvas",
-      );
-
-      const applyFrame = (element: HTMLElement) => {
-        element.style.setProperty("position", "fixed", "important");
-        element.style.setProperty("left", `${frameLeft}px`, "important");
-        element.style.setProperty("top", `${frameTop}px`, "important");
-        element.style.setProperty("width", `${frameWidth}px`, "important");
-        element.style.setProperty("height", `${frameHeight}px`, "important");
-        element.style.setProperty("max-width", "none", "important");
-        element.style.setProperty("max-height", "none", "important");
-        element.style.setProperty("margin", "0", "important");
-        element.style.setProperty("padding", "0", "important");
-      };
-
-      if (canvas) {
-        applyFrame(canvas);
-      }
-
-      for (const element of arElements) {
-        applyFrame(element);
-        if (element instanceof HTMLVideoElement) {
-          element.style.setProperty("object-fit", "fill", "important");
-          element.style.setProperty("object-position", "center center", "important");
-        }
-      }
-
-      const anyScene = scene as unknown as {
-        renderer?: {
-          setPixelRatio?: (value: number) => void;
-          setSize?: (w: number, h: number, updateStyle?: boolean) => void;
-        };
-        camera?: {
-          aspect?: number;
-          updateProjectionMatrix?: () => void;
-        };
-        resize?: () => void;
-      };
-
-      anyScene.resize?.();
-
-      if (anyScene.renderer?.setPixelRatio) {
-        anyScene.renderer.setPixelRatio(dpr);
-      }
-
-      if (anyScene.renderer?.setSize) {
-        anyScene.renderer.setSize(frameWidth, frameHeight, false);
-      }
-
-      if (anyScene.camera) {
-        anyScene.camera.aspect = frameWidth / frameHeight;
-        anyScene.camera.updateProjectionMatrix?.();
-      }
-    };
-
-    const scheduleViewportSize = () => {
-      window.cancelAnimationFrame(frameRequest);
-      frameRequest = window.requestAnimationFrame(applyViewportSize);
-    };
-
-    const onSceneLoaded = () => scheduleViewportSize();
-
-    scene.addEventListener("loaded", onSceneLoaded);
-    window.addEventListener("resize", scheduleViewportSize);
-    window.addEventListener("orientationchange", scheduleViewportSize);
-    window.visualViewport?.addEventListener("resize", scheduleViewportSize);
-
-    scheduleViewportSize();
-    settleTimers.push(
-      window.setTimeout(scheduleViewportSize, 120),
-      window.setTimeout(scheduleViewportSize, 400),
-      window.setTimeout(scheduleViewportSize, 1000),
-    );
-
-    return () => {
-      scene.removeEventListener("loaded", onSceneLoaded);
-      window.removeEventListener("resize", scheduleViewportSize);
-      window.removeEventListener("orientationchange", scheduleViewportSize);
-      window.visualViewport?.removeEventListener(
-        "resize",
-        scheduleViewportSize,
-      );
-      window.cancelAnimationFrame(frameRequest);
-
-      for (const timer of settleTimers) {
-        window.clearTimeout(timer);
-      }
-
-      root.removeAttribute("data-ar-viewer");
-      body.removeAttribute("data-ar-viewer");
-
-      if (previousRootStyle === null) {
-        root.removeAttribute("style");
-      } else {
-        root.setAttribute("style", previousRootStyle);
-      }
-
-      if (previousBodyStyle === null) {
-        body.removeAttribute("style");
-      } else {
-        body.setAttribute("style", previousBodyStyle);
-      }
-    };
-  }, [mounted]);
 
   useEffect(() => {
     Promise.all([fetch("/api/config"), fetch("/api/markers")])
@@ -294,15 +87,13 @@ export default function Home() {
 
   const data = SCREENS[series][size as keyof (typeof SCREENS)[typeof series]];
 
-  const targetAspect = 16 / 9;
   const outerWidth = data.B * 0.01;
-  const outerHeight = outerWidth / targetAspect;
+  const outerHeight = data.H * 0.01;
   const outerDepth = data.D * 0.01;
   const screenPlaneOffset = outerDepth / 2 + 0.002;
 
-  const bezelScale = Math.min(0.98, Math.max(0.7, 1 - (data.Bezel * 2) / data.B));
-  const visibleWidth = Math.max(0.01, outerWidth * bezelScale);
-  const visibleHeight = Math.max(0.01, outerHeight * bezelScale);
+  const visibleWidth = Math.max(0.01, (data.B - data.Bezel * 2) * 0.01);
+  const visibleHeight = Math.max(0.01, (data.H - data.Bezel * 2) * 0.01);
 
   const markerMap = useMemo(() => {
     const map = new Map<string, MarkerOption>();
@@ -404,14 +195,14 @@ export default function Home() {
   }
 
   return (
-    <main className="fixed inset-0 w-dvw h-dvh overflow-hidden">
+    <>
       <a-scene
-        ref={sceneRef}
-        className="ar-scene"
-        arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false; patternRatio: 0.5; labelingMode: black_region;"
+        embedded
+        arjs="debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; patternRatio: 0.5;"
+        inspector
         vr-mode-ui="enabled: false"
         renderer="logarithmicDepthBuffer: true; antialias: true;"
-        style={{ width: "100%", height: "100%" }}
+        device-orientation-permission-ui
       >
         <a-assets>
           {activeAssignments.map((assignment, index) => {
@@ -435,16 +226,8 @@ export default function Home() {
 
         {activeAssignments.map((assignment, index) => {
           const markerOrientation = assignment.orientation || orientation;
-
-          const bodyWidth =
-            markerOrientation === "Landscape" ? outerWidth : outerHeight;
-          const bodyHeight =
-            markerOrientation === "Landscape" ? outerHeight : outerWidth;
-
-          const screenWidth =
-            markerOrientation === "Landscape" ? visibleWidth : visibleHeight;
-          const screenHeight =
-            markerOrientation === "Landscape" ? visibleHeight : visibleWidth;
+          const tvRotation =
+            markerOrientation === "Portrait" ? "-90 0 90" : "-90 0 0";
 
           const videoId = buildVideoId(assignment.id, index);
 
@@ -460,17 +243,17 @@ export default function Home() {
               smoothThreshold="5"
               data-marker-id={assignment.id}
             >
-              <a-entity rotation="-90 0 0" position="0 0 0.05">
+              <a-entity rotation={tvRotation} position="0 0 0.05">
                 <a-box
                   depth={outerDepth}
-                  width={bodyWidth}
-                  height={bodyHeight}
+                  width={outerWidth}
+                  height={outerHeight}
                   color="black"
                 />
                 <a-plane
                   position={`0 0 ${screenPlaneOffset}`}
-                  width={screenWidth}
-                  height={screenHeight}
+                  width={visibleWidth}
+                  height={visibleHeight}
                   material={`src: #${videoId}; side: double; shader: flat;`}
                 />
               </a-entity>
@@ -552,6 +335,6 @@ export default function Home() {
         Position: {client ? "Per marker" : orientation} <br />
         Markers loaded: {activeAssignments.length}
       </div>
-    </main>
+    </>
   );
 }

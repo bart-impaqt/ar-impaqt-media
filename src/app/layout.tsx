@@ -1,4 +1,4 @@
-import { Viewport } from "next/dist/types";
+import type { Viewport } from "next";
 import "./globals.css";
 import Script from "next/script";
 
@@ -23,10 +23,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
-        />
         <Script
           src="https://aframe.io/releases/1.5.0/aframe.min.js"
           strategy="beforeInteractive"
@@ -40,7 +36,7 @@ export default function RootLayout({
           strategy="beforeInteractive"
         />
       </head>
-      <body className="bg-black text-white">{children}</body>
+      <body>{children}</body>
     </html>
   );
 }
