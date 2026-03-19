@@ -1,6 +1,21 @@
-import { NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
+import { NextResponse } from "next/server";
+
+import {
+  buildStorageProxyUrl,
+  deleteMarkerById,
+  deleteStorageObject,
+  getFileExtension,
+  LEGACY_MARKERS,
+  readMarkerConfig as readSupabaseMarkerConfig,
+  removeMarkerFromAssignments as removeMarkerFromSupabaseAssignments,
+  sanitizeMarkerId,
+  toLabel,
+  upsertMarker,
+  uploadStorageObject,
+} from "@/lib/ar-tv-store";
+import { isSupabaseConfigured } from "@/lib/supabase-admin";
 
 type Marker = {
   id: string;
@@ -34,54 +49,7 @@ const CONTENT_CONFIG_PATH = path.join(
 const MARKERS_DIR = path.join(process.cwd(), "public", "markers");
 const PATTERN_DATA_URL_PREFIX = "data:text/plain;base64,";
 
-const LEGACY_MARKERS: Marker[] = [
-  {
-    id: "pattern-letterA",
-    label: "Letter A",
-    patternUrl: "/markers/pattern-letterA.patt",
-    imageUrl: null,
-  },
-  {
-    id: "pattern-letterB",
-    label: "Letter B",
-    patternUrl: "/markers/pattern-letterB.patt",
-    imageUrl: null,
-  },
-  {
-    id: "pattern-letterC",
-    label: "Letter C",
-    patternUrl: "/markers/pattern-letterC.patt",
-    imageUrl: null,
-  },
-  {
-    id: "pattern-letterD",
-    label: "Letter D",
-    patternUrl: "/markers/pattern-letterD.patt",
-    imageUrl: null,
-  },
-  {
-    id: "pattern-hiro",
-    label: "Hiro",
-    patternUrl: "/markers/pattern-hiro.patt",
-    imageUrl: null,
-  },
-];
-
-const sanitizeMarkerId = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9_-]/g, "");
-
-const toLabel = (id: string) =>
-  id
-    .split("-")
-    .filter(Boolean)
-    .map((chunk) => chunk[0].toUpperCase() + chunk.slice(1))
-    .join(" ");
-
-const getFileExtension = (fileName: string) => path.extname(fileName).toLowerCase();
+export const runtime = "nodejs";
 
 const isPngUpload = (file: File) =>
   file.type === "image/png" || getFileExtension(file.name) === ".png";
@@ -100,6 +68,22 @@ const decodePatternDataUrl = (dataUrl: string): Buffer | null => {
   } catch {
     return null;
   }
+};
+
+const mergeWithLegacyMarkers = (config: MarkerConfig): MarkerConfig => {
+  const map = new Map<string, Marker>();
+  for (const marker of LEGACY_MARKERS) {
+    map.set(marker.id, marker);
+  }
+  for (const marker of config.markers || []) {
+    map.set(marker.id, marker);
+  }
+
+  return {
+    markers: Array.from(map.values()).sort((a, b) =>
+      a.label.localeCompare(b.label)
+    ),
+  };
 };
 
 const migrateDataUrlPatterns = async (config: MarkerConfig): Promise<MarkerConfig> => {
@@ -132,30 +116,14 @@ const migrateDataUrlPatterns = async (config: MarkerConfig): Promise<MarkerConfi
   return { markers };
 };
 
-const mergeWithLegacyMarkers = (config: MarkerConfig): MarkerConfig => {
-  const map = new Map<string, Marker>();
-  for (const marker of LEGACY_MARKERS) {
-    map.set(marker.id, marker);
-  }
-  for (const marker of config.markers || []) {
-    map.set(marker.id, marker);
-  }
-
-  return {
-    markers: Array.from(map.values()).sort((a, b) =>
-      a.label.localeCompare(b.label)
-    ),
-  };
-};
-
-const readMarkerConfig = async (): Promise<MarkerConfig> => {
+const readLocalMarkerConfig = async (): Promise<MarkerConfig> => {
   try {
     const raw = await fs.readFile(MARKER_CONFIG_PATH, "utf8");
     const merged = mergeWithLegacyMarkers(JSON.parse(raw) as MarkerConfig);
     const migrated = await migrateDataUrlPatterns(merged);
 
     if (migrated !== merged) {
-      await writeMarkerConfig(migrated);
+      await writeLocalMarkerConfig(migrated);
     }
 
     return migrated;
@@ -171,7 +139,7 @@ const readMarkerConfig = async (): Promise<MarkerConfig> => {
   }
 };
 
-const writeMarkerConfig = async (config: MarkerConfig) => {
+const writeLocalMarkerConfig = async (config: MarkerConfig) => {
   await fs.writeFile(
     MARKER_CONFIG_PATH,
     JSON.stringify({ markers: config.markers }, null, 2),
@@ -179,7 +147,7 @@ const writeMarkerConfig = async (config: MarkerConfig) => {
   );
 };
 
-const removeMarkerFromAssignments = async (markerId: string) => {
+const removeMarkerFromLocalAssignments = async (markerId: string) => {
   let parsed: ContentConfig;
   try {
     const raw = await fs.readFile(CONTENT_CONFIG_PATH, "utf8");
@@ -198,9 +166,17 @@ const removeMarkerFromAssignments = async (markerId: string) => {
   await fs.writeFile(CONTENT_CONFIG_PATH, JSON.stringify(parsed, null, 2), "utf8");
 };
 
+const readUnifiedMarkerConfig = async (): Promise<MarkerConfig> => {
+  if (isSupabaseConfigured()) {
+    return await readSupabaseMarkerConfig();
+  }
+
+  return await readLocalMarkerConfig();
+};
+
 export async function GET() {
   try {
-    const config = await readMarkerConfig();
+    const config = await readUnifiedMarkerConfig();
     return NextResponse.json(config);
   } catch (err) {
     console.error("Error reading marker config:", err);
@@ -248,6 +224,50 @@ export async function POST(req: Request) {
     }
 
     const label = rawLabel.trim() || toLabel(markerId);
+
+    if (isSupabaseConfigured()) {
+      const patternPath = `markers/${markerId}.patt`;
+      let imagePath: string | null = null;
+
+      if (fileIsPng) {
+        const imageBuffer = Buffer.from(await file.arrayBuffer());
+        await uploadStorageObject(`markers/${markerId}.png`, imageBuffer, "image/png");
+        await uploadStorageObject(
+          patternPath,
+          decodedPngPattern as Buffer,
+          "text/plain; charset=utf-8"
+        );
+        imagePath = `markers/${markerId}.png`;
+      } else {
+        const patternBuffer = Buffer.from(await file.arrayBuffer());
+        if (patternBuffer.length === 0) {
+          return NextResponse.json(
+            { error: "Uploaded .patt file is empty" },
+            { status: 400 }
+          );
+        }
+
+        await uploadStorageObject(patternPath, patternBuffer, "text/plain; charset=utf-8");
+        await deleteStorageObject(`markers/${markerId}.png`);
+      }
+
+      await upsertMarker({
+        id: markerId,
+        label,
+        patternPath,
+        imagePath,
+      });
+
+      const nextMarker: Marker = {
+        id: markerId,
+        label,
+        patternUrl: buildStorageProxyUrl(patternPath),
+        imageUrl: imagePath ? buildStorageProxyUrl(imagePath) : null,
+      };
+
+      return NextResponse.json({ ok: true, marker: nextMarker });
+    }
+
     await fs.mkdir(MARKERS_DIR, { recursive: true });
 
     const patternUrl = `/markers/${markerId}.patt`;
@@ -274,7 +294,7 @@ export async function POST(req: Request) {
       await fs.unlink(imagePath).catch(() => undefined);
     }
 
-    const config = await readMarkerConfig();
+    const config = await readLocalMarkerConfig();
     const nextMarker: Marker = {
       id: markerId,
       label,
@@ -290,7 +310,7 @@ export async function POST(req: Request) {
     }
 
     config.markers.sort((a, b) => a.label.localeCompare(b.label));
-    await writeMarkerConfig(config);
+    await writeLocalMarkerConfig(config);
 
     return NextResponse.json({ ok: true, marker: nextMarker });
   } catch (err) {
@@ -308,20 +328,35 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "Missing marker id" }, { status: 400 });
     }
 
-    const config = await readMarkerConfig();
+    if (isSupabaseConfigured()) {
+      const marker = await deleteMarkerById(markerId);
+      if (!marker) {
+        return NextResponse.json({ error: "Marker not found" }, { status: 404 });
+      }
+
+      await deleteStorageObject(marker.patternPath);
+      if (marker.imagePath) {
+        await deleteStorageObject(marker.imagePath);
+      }
+      await removeMarkerFromSupabaseAssignments(markerId);
+
+      return NextResponse.json({ ok: true });
+    }
+
+    const config = await readLocalMarkerConfig();
     const marker = config.markers.find((m) => m.id === markerId);
     if (!marker) {
       return NextResponse.json({ error: "Marker not found" }, { status: 404 });
     }
 
     config.markers = config.markers.filter((m) => m.id !== markerId);
-    await writeMarkerConfig(config);
+    await writeLocalMarkerConfig(config);
 
     const imagePath = path.join(MARKERS_DIR, `${markerId}.png`);
     const patternPath = path.join(MARKERS_DIR, `${markerId}.patt`);
     await fs.unlink(imagePath).catch(() => undefined);
     await fs.unlink(patternPath).catch(() => undefined);
-    await removeMarkerFromAssignments(markerId);
+    await removeMarkerFromLocalAssignments(markerId);
 
     return NextResponse.json({ ok: true });
   } catch (err) {
