@@ -58,6 +58,7 @@ export default function Home() {
   const [orientation, setOrientation] = useState<Orientation>("Landscape");
   const [size, setSize] = useState<string>("43");
   const [mounted, setMounted] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [client, setClient] = useState<string>(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("selectedClient") || "";
@@ -87,6 +88,19 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+    const narrowViewport = window.matchMedia("(max-width: 900px)").matches;
+    const mobileUserAgent =
+      /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
+
+    setIsMobileDevice(coarsePointer || narrowViewport || mobileUserAgent);
+  }, []);
+
+  useEffect(() => {
     Promise.all([fetch("/api/config"), fetch("/api/markers")])
       .then(async ([configResponse, markerResponse]) => {
         const configPayload = (await configResponse.json()) as ContentConfig;
@@ -109,6 +123,12 @@ export default function Home() {
   const visibleWidth = Math.max(0.01, (data.B - data.Bezel * 2) * 0.01);
   const visibleHeight = Math.max(0.01, (data.H - data.Bezel * 2) * 0.01);
   const useQmc32Model = series === "QMC" && size === "32";
+  const markerSmoothCount = isMobileDevice ? 18 : 10;
+  const markerSmoothTolerance = isMobileDevice ? 0.03 : 0.01;
+  const markerSmoothThreshold = isMobileDevice ? 8 : 5;
+  const arjsConfig = `debugUIEnabled: false; trackingMethod: best; detectionMode: mono; patternRatio: 0.5; sourceType: webcam; maxDetectionRate: ${
+    isMobileDevice ? 30 : 60
+  };`;
 
   const markerMap = useMemo(() => {
     const map = new Map<string, MarkerOption>();
@@ -230,7 +250,7 @@ export default function Home() {
     <>
       <a-scene
         embedded
-        arjs="debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; patternRatio: 0.5;"
+        arjs={arjsConfig}
         inspector
         vr-mode-ui="enabled: false"
         renderer="logarithmicDepthBuffer: true; antialias: true;"
@@ -267,14 +287,14 @@ export default function Home() {
             <a-marker
               key={`${assignment.id}-${index}`}
               type="pattern"
-              url={resolvePatternUrl(assignment.id)}
-              size="0.0108"
-              smooth="true"
-              smoothCount="10"
-              smoothTolerance="0.01"
-              smoothThreshold="5"
-              data-marker-id={assignment.id}
-            >
+                url={resolvePatternUrl(assignment.id)}
+                size="0.0108"
+                smooth="true"
+                smoothCount={String(markerSmoothCount)}
+                smoothTolerance={String(markerSmoothTolerance)}
+                smoothThreshold={String(markerSmoothThreshold)}
+                data-marker-id={assignment.id}
+              >
               <a-entity rotation={tvRotation} position="0 0 0.05">
                 {useQmc32Model ? (
                   <a-entity
