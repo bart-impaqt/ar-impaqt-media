@@ -49,3 +49,24 @@ canvas.a-canvas,
   top: 50% !important;
   transform: translate(-50%, -50%) !important;
 }
+
+@media (max-width: 768px) {
+  #arjs-video,
+  .arjs-video {
+    width: auto !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-width: none !important;
+    max-height: none !important;
+    object-fit: cover !important;
+  }
+
+  canvas.a-canvas,
+  .arjs-canvas {
+    width: auto !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-width: none !important;
+    max-height: none !important;
+  }
+}

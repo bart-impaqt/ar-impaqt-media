@@ -26,6 +26,7 @@ type MarkerConfigResponse = {
 };
 
 const DEFAULT_VIDEO = "/assets/TEST_L.mp4";
+const QMC_32_MODEL_URL = "/32%20QMC.gltf";
 const LEGACY_MARKER_IDS = new Set([
   "pattern-hiro",
   "pattern-letterA",
@@ -107,6 +108,7 @@ export default function Home() {
 
   const visibleWidth = Math.max(0.01, (data.B - data.Bezel * 2) * 0.01);
   const visibleHeight = Math.max(0.01, (data.H - data.Bezel * 2) * 0.01);
+  const useQmc32Model = series === "QMC" && size === "32";
 
   const markerMap = useMemo(() => {
     const map = new Map<string, MarkerOption>();
@@ -274,14 +276,24 @@ export default function Home() {
               data-marker-id={assignment.id}
             >
               <a-entity rotation={tvRotation} position="0 0 0.05">
-                <a-box
-                  depth={outerDepth}
-                  width={outerWidth}
-                  height={outerHeight}
-                  color="black"
-                />
+                {useQmc32Model ? (
+                  <a-entity
+                    gltf-model={QMC_32_MODEL_URL}
+                    rotation="0 90 0"
+                    scale="0.1 0.1 0.1"
+                  />
+                ) : (
+                  <a-box
+                    depth={outerDepth}
+                    width={outerWidth}
+                    height={outerHeight}
+                    color="black"
+                  />
+                )}
                 <a-plane
-                  position={`0 0 ${screenPlaneOffset}`}
+                  position={`0 0 ${
+                    useQmc32Model ? screenPlaneOffset + 0.0005 : screenPlaneOffset
+                  }`}
                   width={visibleWidth}
                   height={visibleHeight}
                   material={`src: #${videoId}; side: double; shader: flat;`}
