@@ -32,6 +32,10 @@ type StoredMarker = {
 const CONTENT_CONFIG_OBJECT = "config/contentConfig.json";
 const MARKER_CONFIG_OBJECT = "config/markerConfig.json";
 const STORAGE_PATH_REGEX = /^[a-zA-Z0-9/_.\-]+$/;
+const GENERIC_BINARY_CONTENT_TYPES = new Set([
+  "application/octet-stream",
+  "binary/octet-stream",
+]);
 
 export const LEGACY_MARKERS: Marker[] = [
   {
@@ -254,7 +258,7 @@ const readStorageObject = async (storagePath: string) => {
   const buffer = Buffer.from(await data.arrayBuffer());
   return {
     buffer,
-    contentType: data.type || inferMimeType(storagePath),
+    contentType: resolveContentType(storagePath, data.type),
   };
 };
 
@@ -427,6 +431,18 @@ const inferMimeType = (storagePath: string) => {
   }
 };
 
+export const resolveContentType = (
+  storagePath: string,
+  declaredType?: string | null
+) => {
+  const normalized = (declaredType || "").trim().toLowerCase();
+  if (normalized && !GENERIC_BINARY_CONTENT_TYPES.has(normalized)) {
+    return normalized;
+  }
+
+  return inferMimeType(storagePath);
+};
+
 export const downloadStorageObject = async (storagePath: string) => {
   if (!isAllowedStoragePath(storagePath)) {
     return null;
@@ -434,4 +450,3 @@ export const downloadStorageObject = async (storagePath: string) => {
 
   return await readStorageObject(storagePath);
 };
-

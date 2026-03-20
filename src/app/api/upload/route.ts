@@ -2,7 +2,11 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { NextResponse } from "next/server";
 
-import { buildStorageProxyUrl, uploadStorageObject } from "@/lib/ar-tv-store";
+import {
+  buildStorageProxyUrl,
+  resolveContentType,
+  uploadStorageObject,
+} from "@/lib/ar-tv-store";
 import { getSupabaseConfigHint, isSupabaseConfigured } from "@/lib/supabase-admin";
 
 export const runtime = "nodejs";
@@ -23,7 +27,7 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(arrayBuffer);
     const safeName = file.name.replace(/\s+/g, "_").replace(/[^\w\.-]/g, "");
     const fileName = `${Date.now()}_${safeName}`;
-    const contentType = file.type || "application/octet-stream";
+    const contentType = resolveContentType(fileName, file.type);
 
     if (isSupabaseConfigured()) {
       const storagePath = `assets/${fileName}`;

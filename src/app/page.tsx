@@ -69,6 +69,19 @@ export default function Home() {
   );
 
   useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+
+    root.setAttribute("data-ar-viewer", "true");
+    body.setAttribute("data-ar-viewer", "true");
+
+    return () => {
+      root.removeAttribute("data-ar-viewer");
+      body.removeAttribute("data-ar-viewer");
+    };
+  }, []);
+
+  useEffect(() => {
     setMounted(true);
   }, []);
 
@@ -132,33 +145,50 @@ export default function Home() {
     .join("||");
 
   useEffect(() => {
-    const unlock = () => {
+    const playVideos = () => {
       const videos = document.querySelectorAll<HTMLVideoElement>(
         "video[data-ar-video='1']",
       );
 
       for (const video of videos) {
         video.muted = true;
+        video.defaultMuted = true;
+        video.volume = 0;
         video.playsInline = true;
         video.autoplay = true;
         video.setAttribute("playsinline", "true");
         video.setAttribute("webkit-playsinline", "true");
+        video.setAttribute("muted", "true");
+        video.setAttribute("autoplay", "true");
         video.loop = true;
         video.play().catch((err) => {
           console.warn("Video play blocked:", err);
         });
       }
-
-      window.removeEventListener("click", unlock);
-      window.removeEventListener("touchstart", unlock);
     };
 
-    window.addEventListener("click", unlock);
-    window.addEventListener("touchstart", unlock);
+    playVideos();
+
+    const replayInterval = window.setInterval(playVideos, 800);
+    const replayTimeout = window.setTimeout(() => {
+      window.clearInterval(replayInterval);
+    }, 6000);
+
+    const events: (keyof WindowEventMap)[] = ["pointerdown", "touchstart", "click"];
+    for (const eventName of events) {
+      window.addEventListener(eventName, playVideos, { passive: true });
+    }
+    window.addEventListener("pageshow", playVideos);
+    document.addEventListener("visibilitychange", playVideos);
 
     return () => {
-      window.removeEventListener("click", unlock);
-      window.removeEventListener("touchstart", unlock);
+      window.clearInterval(replayInterval);
+      window.clearTimeout(replayTimeout);
+      for (const eventName of events) {
+        window.removeEventListener(eventName, playVideos);
+      }
+      window.removeEventListener("pageshow", playVideos);
+      document.removeEventListener("visibilitychange", playVideos);
     };
   }, [playbackKey]);
 
